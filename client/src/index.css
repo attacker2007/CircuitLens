@@ -1,0 +1,99 @@
+:root {
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* Dark theme tokens (default electronics workbench aesthetic) */
+  --bg-app: #080d1a;
+  --bg-panel: #0d1527;
+  --bg-panel-elevated: #131e36;
+  --bg-input: #0a1122;
+  --border-color: #1a2744;
+  --border-highlight: #00d2ff;
+  --accent-cyan: #00d2ff;
+  --accent-cyan-dim: rgba(0, 210, 255, 0.12);
+  --accent-cyan-glow: rgba(0, 210, 255, 0.25);
+  --accent-cyan-border: rgba(0, 210, 255, 0.35);
+
+  --text-primary: #e6edf8;
+  --text-secondary: #8c9eb9;
+  --text-muted: #536785;
+
+  --status-ok: #10b981;
+  --status-ok-bg: rgba(16, 185, 129, 0.12);
+  --status-ok-border: rgba(16, 185, 129, 0.35);
+
+  --status-err: #f43f5e;
+  --status-err-bg: rgba(244, 63, 94, 0.12);
+  --status-err-border: rgba(244, 63, 94, 0.35);
+
+  --status-pending: #f59e0b;
+  --status-pending-bg: rgba(245, 158, 11, 0.12);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 16px rgba(0, 210, 255, 0.15);
+}
+
+[data-theme="light"] {
+  --bg-app: #f4f6fa;
+  --bg-panel: #ffffff;
+  --bg-panel-elevated: #f8fafc;
+  --bg-input: #eef2f6;
+  --border-color: #d8e2ee;
+  --border-highlight: #0284c7;
+  --accent-cyan: #0284c7;
+  --accent-cyan-dim: rgba(2, 132, 199, 0.08);
+  --accent-cyan-glow: rgba(2, 132, 199, 0.15);
+  --accent-cyan-border: rgba(2, 132, 199, 0.3);
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  --status-ok: #059669;
+  --status-ok-bg: rgba(5, 150, 105, 0.1);
+  --status-ok-border: rgba(5, 150, 105, 0.3);
+
+  --status-err: #e11d48;
+  --status-err-bg: rgba(225, 29, 72, 0.1);
+  --status-err-border: rgba(225, 29, 72, 0.3);
+
+  --status-pending: #d97706;
+  --status-pending-bg: rgba(217, 119, 6, 0.1);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06);
+  --shadow-glow: 0 0 16px rgba(2, 132, 199, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+code, pre, .mono {
+  font-family: var(--font-mono);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}

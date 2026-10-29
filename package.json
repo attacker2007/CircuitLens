@@ -1,0 +1,21 @@
+{
+  "name": "circuitlens",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CircuitLens - AI-assisted electronics troubleshooting web application",
+  "scripts": {
+    "install:all": "npm install && npm --prefix server install && npm --prefix client install",
+    "dev": "concurrently -n \"server,client\" -c \"cyan,magenta\" \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "build": "npm run build:server && npm run build:client",
+    "build:server": "npm --prefix server run build",
+    "build:client": "npm --prefix client run build",
+    "typecheck": "npm --prefix server run build && npm --prefix client run typecheck",
+    "server:start": "npm --prefix server start",
+    "start": "npm --prefix server start"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6"
+  }
+}

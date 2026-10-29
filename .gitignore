@@ -1,0 +1,31 @@
+# Environment variables (MUST never be committed)
+.env
+.env.*
+!.env.example
+*.local
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+
+# Logs (keep API keys and sensitive tokens out of logs)
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor & OS files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
