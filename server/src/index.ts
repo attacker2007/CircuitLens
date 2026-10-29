@@ -85,45 +85,97 @@ app.post('/api/test-meta', async (req: Request, res: Response) => {
 
 // POST endpoint for AI circuit diagnosis
 app.post('/api/diagnose', async (req: Request, res: Response) => {
+  const abortController = new AbortController();
+
+  const onResClose = () => {
+    // Only abort if the response has not completed (client disconnected prematurely)
+    if (!res.writableEnded) {
+      abortController.abort();
+    }
+  };
+
+  res.on('close', onResClose);
+
   try {
     // 1. Authoritative server-side validation & sanitization before any API dispatch
     const validatedRequest = validateDiagnosisRequest(req.body);
 
-    // 2. Call Meta vision inference with validated payload
-    const diagnosis = await analyzeCircuitImage(validatedRequest);
+    // 2. Call Meta vision inference with validated payload and abort signal
+    const diagnosis = await analyzeCircuitImage(validatedRequest, { signal: abortController.signal });
 
-    // 3. Return validated DiagnosisResponse
-    res.json(diagnosis);
+    // 3. Return validated DiagnosisResponse if response is still open
+    if (!res.headersSent && !res.writableEnded) {
+      res.json(diagnosis);
+    }
   } catch (error) {
+    if (res.headersSent || res.writableEnded) {
+      return;
+    }
     const normalized = handleApiError(error);
+    if (normalized.statusCode === 499 || abortController.signal.aborted) {
+      res.status(499).json({
+        success: false,
+        errorType: 'CLIENT_CLOSED_REQUEST',
+        message: 'Request was cancelled before completion.',
+      });
+      return;
+    }
     console.error(`[Diagnosis Error] [${normalized.errorType}] HTTP ${normalized.statusCode}: ${normalized.message}`);
     res.status(normalized.statusCode).json({
       success: false,
       errorType: normalized.errorType,
       message: normalized.message,
     });
+  } finally {
+    res.off('close', onResClose);
   }
 });
 
 // POST endpoint for AI circuit diagnostic reassessment based on accumulated evidence
 app.post('/api/reassess', async (req: Request, res: Response) => {
+  const abortController = new AbortController();
+
+  const onResClose = () => {
+    // Only abort if the response has not completed (client disconnected prematurely)
+    if (!res.writableEnded) {
+      abortController.abort();
+    }
+  };
+
+  res.on('close', onResClose);
+
   try {
     // 1. Authoritative server-side validation & sanitization before any API dispatch
     const validatedRequest = validateReassessmentRequest(req.body);
 
-    // 2. Call Meta inference with validated payload
-    const reassessment = await reassessCircuitEvidence(validatedRequest);
+    // 2. Call Meta inference with validated payload and abort signal
+    const reassessment = await reassessCircuitEvidence(validatedRequest, { signal: abortController.signal });
 
-    // 3. Return validated DiagnosisReassessmentResponse
-    res.json(reassessment);
+    // 3. Return validated DiagnosisReassessmentResponse if response is still open
+    if (!res.headersSent && !res.writableEnded) {
+      res.json(reassessment);
+    }
   } catch (error) {
+    if (res.headersSent || res.writableEnded) {
+      return;
+    }
     const normalized = handleApiError(error);
+    if (normalized.statusCode === 499 || abortController.signal.aborted) {
+      res.status(499).json({
+        success: false,
+        errorType: 'CLIENT_CLOSED_REQUEST',
+        message: 'Request was cancelled before completion.',
+      });
+      return;
+    }
     console.error(`[Reassessment Error] [${normalized.errorType}] HTTP ${normalized.statusCode}: ${normalized.message}`);
     res.status(normalized.statusCode).json({
       success: false,
       errorType: normalized.errorType,
       message: normalized.message,
     });
+  } finally {
+    res.off('close', onResClose);
   }
 });
 

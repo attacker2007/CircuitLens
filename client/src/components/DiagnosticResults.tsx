@@ -185,6 +185,9 @@ export function DiagnosticResults({
       }
 
       if (err instanceof DiagnosisClientError) {
+        if (err.errorType === 'CANCELLED' || err.statusCode === 499) {
+          return;
+        }
         setReassessmentError({
           title: t.reassessErrorTitle,
           message: err.message,
@@ -203,6 +206,15 @@ export function DiagnosticResults({
         abortControllerRef.current = null;
       }
     }
+  };
+
+  const handleCancelReassessment = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsReassessing(false);
+    setReassessmentError(null);
   };
   const getConfidenceLabel = (conf: ConfidenceLevel): string => {
     switch (conf) {
@@ -778,6 +790,28 @@ export function DiagnosticResults({
               <h4 className="loading-title">{t.reassessingProgressTitle}</h4>
               <p className="loading-subtitle">{t.reassessingProgressSubtitle}</p>
             </div>
+            <button
+              type="button"
+              className="action-btn secondary-btn cancel-reassessment-btn"
+              onClick={handleCancelReassessment}
+              aria-label={t.cancelReassessmentBtn}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+              <span>{t.cancelReassessmentBtn}</span>
+            </button>
           </div>
         )}
 

@@ -57,6 +57,7 @@ export function EvidenceCapturePanel({
   // Synchronize supersede default if prior attempts change
   useEffect(() => {
     if (latestPriorAttempt) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormValues((prev) => ({ ...prev, supersedePriorAttempt: true }));
     }
   }, [latestPriorAttempt]);

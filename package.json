@@ -11,6 +11,9 @@
     "build": "npm run build:server && npm run build:client",
     "build:server": "npm --prefix server run build",
     "build:client": "npm --prefix client run build",
+    "test": "npm --prefix server test && npm --prefix client test",
+    "test:server": "npm --prefix server test",
+    "test:client": "npm --prefix client test",
     "typecheck": "npm --prefix server run build && npm --prefix client run typecheck",
     "server:start": "npm --prefix server start",
     "start": "npm --prefix server start"

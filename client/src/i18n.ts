@@ -98,6 +98,7 @@ export interface Translations {
   diagnosingProgressTitle: string;
   diagnosingProgressSubtitle: string;
   diagnosingTip: string;
+  cancelDiagnosisBtn: string;
   retryDiagnosisBtn: string;
   editSymptomsBtn: string;
   newInvestigationBtn: string;
@@ -194,6 +195,7 @@ export interface Translations {
   noEvidenceForReassessmentNotice: string;
   evidenceLimitExceededNotice: string;
   reassessErrorTitle: string;
+  cancelReassessmentBtn: string;
   retryReassessmentBtn: string;
   reassessmentNotesLabel: string;
   reassessmentNotesPlaceholder: string;
@@ -317,6 +319,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
     diagnosingProgressTitle: 'Analyzing Circuit Board...',
     diagnosingProgressSubtitle: 'Transmitting PCB photograph and symptom profile to Meta Model API for multimodal defect and failure path analysis.',
     diagnosingTip: 'Visual reasoning and safety verification typically take 5 to 20 seconds. Please do not close this window.',
+    cancelDiagnosisBtn: 'Cancel Diagnosis',
     retryDiagnosisBtn: 'Retry Diagnosis',
     editSymptomsBtn: 'Edit Intake Parameters',
     newInvestigationBtn: 'New Circuit Investigation',
@@ -412,6 +415,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
     noEvidenceForReassessmentNotice: 'Record at least 1 diagnostic check outcome to request AI reassessment.',
     evidenceLimitExceededNotice: 'The current reassessment endpoint accepts up to 20 evidence records. Your investigation currently contains {count} records. Reassessment is temporarily paused to preserve complete history without truncation.',
     reassessErrorTitle: 'Reassessment Failed',
+    cancelReassessmentBtn: 'Cancel Reassessment',
     retryReassessmentBtn: 'Retry Reassessment',
     reassessmentNotesLabel: 'Additional Reassessment Notes (Optional)',
     reassessmentNotesPlaceholder: 'Describe any circuit changes, test conditions, or environmental anomalies (max 1000 characters)...',
@@ -533,6 +537,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
     diagnosingProgressTitle: 'Analizando Placa de Circuito...',
     diagnosingProgressSubtitle: 'Transmitiendo la fotografía y el perfil de síntomas al modelo Meta IA para análisis multimodal de defectos y fallas.',
     diagnosingTip: 'El razonamiento visual y la verificación de seguridad suelen tardar entre 5 y 20 segundos. No cierre esta ventana.',
+    cancelDiagnosisBtn: 'Cancelar Diagnóstico',
     retryDiagnosisBtn: 'Reintentar Diagnóstico',
     editSymptomsBtn: 'Modificar Parámetros de Entrada',
     newInvestigationBtn: 'Nueva Investigación de Circuito',
@@ -628,6 +633,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
     noEvidenceForReassessmentNotice: 'Registre al menos 1 resultado de verificación para solicitar la reevaluación por IA.',
     evidenceLimitExceededNotice: 'El punto de conexión actual acepta hasta 20 registros de evidencia. Su investigación contiene actualmente {count} registros. La reevaluación está pausada para preservar el historial completo sin truncamiento.',
     reassessErrorTitle: 'Error en la reevaluación',
+    cancelReassessmentBtn: 'Cancelar Reevaluación',
     retryReassessmentBtn: 'Reintentar reevaluación',
     reassessmentNotesLabel: 'Notas adicionales de reevaluación (opcional)',
     reassessmentNotesPlaceholder: 'Describa cambios en el circuito, condiciones de prueba o anomalías ambientales (máx. 1000 caracteres)...',
@@ -749,6 +755,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
     diagnosingProgressTitle: 'جارٍ تحليل لوحة الدائرة الإلكترونية...',
     diagnosingProgressSubtitle: 'جارٍ إرسال صورة اللوحة وملف الأعراض إلى نموذج Meta AI لإجراء الفحص البصري والاستدلالي للأعطال.',
     diagnosingTip: 'يستغرق الاستدلال البصري والتحقق من السلامة عادة ما بين 5 إلى 20 ثانية. يُرجى عدم إغلاق هذه الصفحة.',
+    cancelDiagnosisBtn: 'إلغاء التشخيص',
     retryDiagnosisBtn: 'إعادة محاولة التشخيص',
     editSymptomsBtn: 'تعديل معالم وبيانات الفحص',
     newInvestigationBtn: 'فحص دارة جديدة',
@@ -844,6 +851,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
     noEvidenceForReassessmentNotice: 'سجّل نتيجة فحص واحدة على الأقل لطلب إعادة التقييم بالذكاء الاصطناعي.',
     evidenceLimitExceededNotice: 'تقبل نقطة نهاية إعادة التقييم الحالية ما يصل إلى 20 سجلاً من الأدلة. يحتوي فحصك حالياً على {count} سجلاً. تم إيقاف إعادة التقييم مؤقتاً للحفاظ على السجل كاملاً دون اقتطاع.',
     reassessErrorTitle: 'فشلت إعادة التقييم',
+    cancelReassessmentBtn: 'إلغاء إعادة التقييم',
     retryReassessmentBtn: 'إعادة محاولة التقييم',
     reassessmentNotesLabel: 'ملاحظات إضافية لإعادة التقييم (اختياري)',
     reassessmentNotesPlaceholder: 'صف أي تغييرات في الدائرة، أو ظروف الاختبار، أو الحالات الشاذة البيئية (بحد أقصى 1000 حرف)...',

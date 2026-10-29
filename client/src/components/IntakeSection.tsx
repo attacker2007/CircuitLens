@@ -65,6 +65,7 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const previewUrlRef = useRef<string | null>(null);
+  const diagnosisAbortControllerRef = useRef<AbortController | null>(null);
 
   // Synchronize active preview URL ref
   useEffect(() => {
@@ -95,13 +96,17 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
     setCameraError(null);
   }, [stopMediaStream]);
 
-  // Cleanup object URL and active media streams on unmount to prevent leaks
+  // Cleanup object URL, media streams, and any in-flight diagnosis requests on unmount
   useEffect(() => {
     return () => {
       stopMediaStream();
       if (previewUrlRef.current) {
         URL.revokeObjectURL(previewUrlRef.current);
         previewUrlRef.current = null;
+      }
+      if (diagnosisAbortControllerRef.current) {
+        diagnosisAbortControllerRef.current.abort();
+        diagnosisAbortControllerRef.current = null;
       }
     };
   }, [stopMediaStream]);
@@ -393,29 +398,63 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
   };
 
   const handleReturnToEdit = () => {
+    if (diagnosisAbortControllerRef.current) {
+      diagnosisAbortControllerRef.current.abort();
+      diagnosisAbortControllerRef.current = null;
+    }
     setIsStaged(false);
     setDiagnosisError(null);
     setDiagnosisResult(null);
+    setIsDiagnosing(false);
+  };
+
+  const handleCancelDiagnosis = () => {
+    if (diagnosisAbortControllerRef.current) {
+      diagnosisAbortControllerRef.current.abort();
+      diagnosisAbortControllerRef.current = null;
+    }
+    setIsDiagnosing(false);
+    setDiagnosisError(null);
   };
 
   const handleRunDiagnosis = async () => {
     if (isDiagnosing || !stagedPayload || !stagedPayload.fileState) return;
+
+    if (diagnosisAbortControllerRef.current) {
+      diagnosisAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    diagnosisAbortControllerRef.current = controller;
+
     setIsDiagnosing(true);
     setDiagnosisError(null);
 
     try {
       const base64DataUrl = await fileToDataUrl(stagedPayload.fileState.file);
-      const result = await submitCircuitDiagnosis({
-        image: base64DataUrl,
-        boardName: stagedPayload.formData.boardName || undefined,
-        expectedBehavior: stagedPayload.formData.expectedBehavior,
-        observedBehavior: stagedPayload.formData.observedBehavior,
-        relevantComponents: stagedPayload.formData.relevantComponents || undefined,
-        additionalNotes: stagedPayload.formData.additionalNotes || undefined,
-      });
+      if (controller.signal.aborted) return;
+
+      const result = await submitCircuitDiagnosis(
+        {
+          image: base64DataUrl,
+          boardName: stagedPayload.formData.boardName || undefined,
+          expectedBehavior: stagedPayload.formData.expectedBehavior,
+          observedBehavior: stagedPayload.formData.observedBehavior,
+          relevantComponents: stagedPayload.formData.relevantComponents || undefined,
+          additionalNotes: stagedPayload.formData.additionalNotes || undefined,
+        },
+        controller.signal
+      );
+
+      if (controller.signal.aborted) return;
       setDiagnosisResult(result);
     } catch (err: unknown) {
+      if (controller.signal.aborted) {
+        return;
+      }
       if (err instanceof DiagnosisClientError) {
+        if (err.errorType === 'CANCELLED' || err.statusCode === 499) {
+          return;
+        }
         let userMessage = err.message;
         if (err.errorType === 'MISSING_API_KEY') {
           userMessage = t.missingApiKeyErrorNotice;
@@ -439,12 +478,19 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
         });
       }
     } finally {
-      setIsDiagnosing(false);
+      if (diagnosisAbortControllerRef.current === controller) {
+        setIsDiagnosing(false);
+        diagnosisAbortControllerRef.current = null;
+      }
     }
   };
 
   const handleNewInvestigation = () => {
     if (window.confirm(t.confirmNewInvestigation)) {
+      if (diagnosisAbortControllerRef.current) {
+        diagnosisAbortControllerRef.current.abort();
+        diagnosisAbortControllerRef.current = null;
+      }
       if (fileState?.previewUrl) {
         URL.revokeObjectURL(fileState.previewUrl);
       }
@@ -714,6 +760,30 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
                   <line x1="12" y1="8" x2="12.01" y2="8" />
                 </svg>
                 <span>{t.diagnosingTip}</span>
+              </div>
+              <div className="diagnosis-loading-actions">
+                <button
+                  type="button"
+                  className="action-btn secondary-btn cancel-diagnosis-btn"
+                  onClick={handleCancelDiagnosis}
+                  aria-label={t.cancelDiagnosisBtn}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                  <span>{t.cancelDiagnosisBtn}</span>
+                </button>
               </div>
             </div>
           )}

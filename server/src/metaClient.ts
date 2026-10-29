@@ -205,10 +205,10 @@ function buildDiagnosticUserPrompt(request: DiagnosisRequest): string {
 /**
  * Diagnostic analyzer hook allowing offline endpoint testing without network calls or credit consumption.
  */
-let analyzerOverride: ((request: DiagnosisRequest) => Promise<DiagnosisResponse>) | null = null;
+let analyzerOverride: ((request: DiagnosisRequest, options?: { signal?: AbortSignal }) => Promise<DiagnosisResponse>) | null = null;
 
 export function setAnalyzerOverrideForTesting(
-  override: ((request: DiagnosisRequest) => Promise<DiagnosisResponse>) | null
+  override: ((request: DiagnosisRequest, options?: { signal?: AbortSignal }) => Promise<DiagnosisResponse>) | null
 ): void {
   analyzerOverride = override;
 }
@@ -217,9 +217,12 @@ export function setAnalyzerOverrideForTesting(
  * Sends a multimodal circuit inspection request to the configured Meta Model API.
  * Validates and returns a strongly-typed DiagnosisResponse.
  */
-export async function analyzeCircuitImage(request: DiagnosisRequest): Promise<DiagnosisResponse> {
+export async function analyzeCircuitImage(
+  request: DiagnosisRequest,
+  options?: { signal?: AbortSignal }
+): Promise<DiagnosisResponse> {
   if (analyzerOverride) {
-    return analyzerOverride(request);
+    return analyzerOverride(request, options);
   }
 
   const client = createMetaClient();
@@ -255,6 +258,7 @@ export async function analyzeCircuitImage(request: DiagnosisRequest): Promise<Di
     {
       timeout: REQUEST_TIMEOUT_MS,
       maxRetries: 0,
+      signal: options?.signal,
     }
   );
 
@@ -424,10 +428,10 @@ export function buildReassessmentUserPrompt(request: DiagnosisReassessmentReques
 /**
  * Diagnostic reassessment hook allowing offline endpoint testing without network calls or credit consumption.
  */
-let reassessmentAnalyzerOverride: ((request: DiagnosisReassessmentRequest) => Promise<DiagnosisReassessmentResponse>) | null = null;
+let reassessmentAnalyzerOverride: ((request: DiagnosisReassessmentRequest, options?: { signal?: AbortSignal }) => Promise<DiagnosisReassessmentResponse>) | null = null;
 
 export function setReassessmentAnalyzerOverrideForTesting(
-  override: ((request: DiagnosisReassessmentRequest) => Promise<DiagnosisReassessmentResponse>) | null
+  override: ((request: DiagnosisReassessmentRequest, options?: { signal?: AbortSignal }) => Promise<DiagnosisReassessmentResponse>) | null
 ): void {
   reassessmentAnalyzerOverride = override;
 }
@@ -437,10 +441,11 @@ export function setReassessmentAnalyzerOverrideForTesting(
  * Validates and returns a strongly-typed DiagnosisReassessmentResponse.
  */
 export async function reassessCircuitEvidence(
-  request: DiagnosisReassessmentRequest
+  request: DiagnosisReassessmentRequest,
+  options?: { signal?: AbortSignal }
 ): Promise<DiagnosisReassessmentResponse> {
   if (reassessmentAnalyzerOverride) {
-    return reassessmentAnalyzerOverride(request);
+    return reassessmentAnalyzerOverride(request, options);
   }
 
   const client = createMetaClient();
@@ -465,6 +470,7 @@ export async function reassessCircuitEvidence(
     {
       timeout: REQUEST_TIMEOUT_MS,
       maxRetries: 0,
+      signal: options?.signal,
     }
   );
 
@@ -521,6 +527,17 @@ export function handleApiError(error: unknown): NormalizedApiError {
       statusCode: 502,
       errorType: 'SCHEMA_VALIDATION_ERROR',
       message: error.message,
+    };
+  }
+
+  if (
+    error instanceof OpenAI.APIUserAbortError ||
+    (error instanceof Error && (error.name === 'AbortError' || error.name === 'APIUserAbortError'))
+  ) {
+    return {
+      statusCode: 499,
+      errorType: 'CLIENT_CLOSED_REQUEST',
+      message: 'Request was cancelled before completion.',
     };
   }
 
