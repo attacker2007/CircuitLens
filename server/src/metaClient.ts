@@ -120,6 +120,7 @@ export class MissingApiKeyError extends Error {
 export interface TestPromptOptions {
   prompt?: string;
   model?: string;
+  maxTokens?: number;
 }
 
 export interface TestPromptResponse {
@@ -163,13 +164,128 @@ export function createMetaClient(options?: { timeout?: number; maxRetries?: numb
   return createApiClient(options).client;
 }
 
+export class ModelRefusalError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ModelRefusalError';
+  }
+}
+
+export interface ContentExtractionOptions {
+  /**
+   * Whether to fall back to reasoning_content or reasoning when message.content is empty.
+   * STRICTLY FALSE for production diagnosis and reassessment routes: reasoning traces
+   * must never be accepted as valid diagnosis responses.
+   * Default: false.
+   */
+  allowReasoningFallback?: boolean;
+}
+
+let testPromptOverride: ((options?: TestPromptOptions) => Promise<TestPromptResponse>) | null = null;
+
+export function setTestPromptOverrideForTesting(
+  override: ((options?: TestPromptOptions) => Promise<TestPromptResponse>) | null
+): void {
+  testPromptOverride = override;
+}
+
 /**
- * Sends a minimal test prompt to the Meta Model API and returns the result.
+ * Extracts text content from an OpenAI ChatCompletion choice message.
+ * Enforces strict separation of final answers from internal reasoning:
+ * 1. Explicit model refusal throws ModelRefusalError immediately.
+ * 2. User-facing content is strictly preferred (message.content string or content parts array).
+ * 3. Reasoning traces (reasoning_content, reasoning) are ignored by default and NEVER accepted
+ *    in production diagnosis or reassessment.
+ * 4. Legacy text completion fallback is supported only when message is absent.
+ * Returns trimmed string, or empty string if no valid answer content is found.
+ */
+export function extractMessageContent(
+  choice?: unknown,
+  options?: ContentExtractionOptions
+): string {
+  if (!choice || typeof choice !== 'object') {
+    return '';
+  }
+
+  const ch = choice as Record<string, unknown>;
+
+  const message = ch.message as Record<string, unknown> | undefined;
+  if (!message || typeof message !== 'object') {
+    // Legacy choice.text fallback only if message is absent
+    if (typeof ch.text === 'string' && ch.text.trim() !== '') {
+      return ch.text.trim();
+    }
+    return '';
+  }
+
+  // 1. Explicit model refusal throws immediately to prevent treating refusals as output
+  if (typeof message.refusal === 'string' && message.refusal.trim() !== '') {
+    throw new ModelRefusalError(message.refusal.trim());
+  }
+
+  const rawContent = message.content;
+
+  // 2. Direct string content (preferred user-facing response)
+  if (typeof rawContent === 'string' && rawContent.trim() !== '') {
+    return rawContent.trim();
+  }
+
+  // 3. Multimodal / parts array content: [{ type: 'text', text: '...' }]
+  if (Array.isArray(rawContent)) {
+    const textParts = rawContent
+      .map((part: unknown) => {
+        if (typeof part === 'string') return part;
+        if (
+          part &&
+          typeof part === 'object' &&
+          'text' in part &&
+          typeof (part as { text: unknown }).text === 'string'
+        ) {
+          return (part as { text: string }).text;
+        }
+        if (
+          part &&
+          typeof part === 'object' &&
+          'content' in part &&
+          typeof (part as { content: unknown }).content === 'string'
+        ) {
+          return (part as { content: string }).content;
+        }
+        return '';
+      })
+      .filter((t) => t.trim().length > 0);
+
+    if (textParts.length > 0) {
+      return textParts.join('\n').trim();
+    }
+  }
+
+  // 4. Reasoning content fallback ONLY when explicitly enabled (never in production diagnosis/reassessment)
+  if (options?.allowReasoningFallback === true) {
+    if (typeof message.reasoning_content === 'string' && message.reasoning_content.trim() !== '') {
+      return message.reasoning_content.trim();
+    }
+    if (typeof message.reasoning === 'string' && message.reasoning.trim() !== '') {
+      return message.reasoning.trim();
+    }
+  }
+
+  return '';
+}
+
+/**
+ * Sends a minimal test prompt to the configured Model API and returns the result.
+ * Throws DiagnosisParsingError if the model returns empty or unparseable content.
  */
 export async function sendMetaTestPrompt(options?: TestPromptOptions): Promise<TestPromptResponse> {
+  if (testPromptOverride) {
+    return testPromptOverride(options);
+  }
+
   const { client, config } = createApiClient();
   const model = options?.model || config.model;
   const prompt = options?.prompt || 'Hello! Please confirm API connectivity by answering in one short sentence.';
+  const maxTokens = options?.maxTokens || 500;
 
   const startTime = Date.now();
 
@@ -182,7 +298,7 @@ export async function sendMetaTestPrompt(options?: TestPromptOptions): Promise<T
           content: prompt,
         },
       ],
-      max_tokens: 150,
+      max_tokens: maxTokens,
       temperature: 0.2,
     },
     {
@@ -192,7 +308,28 @@ export async function sendMetaTestPrompt(options?: TestPromptOptions): Promise<T
   );
 
   const durationMs = Date.now() - startTime;
-  const content = completion.choices[0]?.message?.content?.trim() || '';
+  const choice = completion.choices?.[0];
+  const content = extractMessageContent(choice);
+
+  if (!content) {
+    const message = choice?.message as unknown as Record<string, unknown> | undefined;
+    const hasReasoning = Boolean(
+      (typeof message?.reasoning_content === 'string' && message.reasoning_content.trim() !== '') ||
+      (typeof message?.reasoning === 'string' && message.reasoning.trim() !== '')
+    );
+    const finishReason = choice?.finish_reason || 'unknown';
+    const completionTokens = completion.usage?.completion_tokens ?? 0;
+
+    if (hasReasoning) {
+      throw new DiagnosisParsingError(
+        `Model emitted reasoning tokens (${completionTokens} tokens, finish_reason: ${finishReason}) but produced no final content. Increase max_tokens or check model reasoning settings.`
+      );
+    } else {
+      throw new DiagnosisParsingError(
+        `Model returned empty response content (finish_reason: ${finishReason}, completion_tokens: ${completionTokens}).`
+      );
+    }
+  }
 
   return {
     success: true,
@@ -346,7 +483,7 @@ export async function analyzeCircuitImage(
     }
   );
 
-  const rawContent = completion.choices[0]?.message?.content || '';
+  const rawContent = extractMessageContent(completion.choices?.[0]);
   return parseDiagnosisJson(rawContent);
 }
 
@@ -558,7 +695,7 @@ export async function reassessCircuitEvidence(
     }
   );
 
-  const rawContent = completion.choices[0]?.message?.content || '';
+  const rawContent = extractMessageContent(completion.choices?.[0]);
   const submittedEvidenceIds = new Set(request.evidence.map((e) => e.id));
   return parseReassessmentJson(rawContent, submittedEvidenceIds);
 }
@@ -573,6 +710,14 @@ export interface NormalizedApiError {
  * Sanitizes and maps errors to prevent leaking sensitive credentials, prompts, or images in responses or logs.
  */
 export function handleApiError(error: unknown): NormalizedApiError {
+  if (error instanceof ModelRefusalError) {
+    return {
+      statusCode: 422,
+      errorType: 'MODEL_REFUSAL',
+      message: `Model refused to process request: ${error.message}`,
+    };
+  }
+
   if (error instanceof ConfigurationError) {
     return {
       statusCode: 500,

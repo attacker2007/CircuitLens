@@ -3,6 +3,7 @@ import {
   resolveProviderConfig,
   sendMetaTestPrompt,
   handleApiError,
+  DiagnosisParsingError,
 } from './metaClient.js';
 
 async function runCliTest() {
@@ -37,6 +38,10 @@ async function runCliTest() {
     const result = await sendMetaTestPrompt({
       prompt: 'Hello! Please confirm API connectivity by replying with: "CircuitLens connection successful!"',
     });
+
+    if (!result.response || result.response.trim() === '') {
+      throw new DiagnosisParsingError('Model returned empty response content.');
+    }
 
     console.log(`\n[SUCCESS] Response received from ${config.provider === 'baseten' ? 'Baseten' : 'Meta'} Model API:`);
     console.log(`- Model:      ${result.model}`);

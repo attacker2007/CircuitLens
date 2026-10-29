@@ -1035,10 +1035,32 @@ export function parseReassessmentJson(
 
   let cleanText = rawText.trim();
 
+  // Check for unclosed <think> tag indicating truncation during reasoning
+  if (/^<think>[\s\S]*$/i.test(cleanText) && !/<\/think>/i.test(cleanText)) {
+    throw new ReassessmentParsingError(
+      'Model output was truncated inside reasoning (<think>) before producing a final response.'
+    );
+  }
+
+  // Strip <think>...</think> reasoning blocks if present (from reasoning-enabled models)
+  cleanText = cleanText.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
+  if (cleanText === '') {
+    throw new ReassessmentParsingError(
+      'Model output contained only reasoning tags (<think>) without a final diagnostic response.'
+    );
+  }
+
   // Strip markdown code block fences if present
   const fenceMatch = cleanText.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
   if (fenceMatch) {
     cleanText = fenceMatch[1].trim();
+  } else {
+    // Also handle embedded markdown code fence blocks if surrounded by prose
+    const embeddedMatch = cleanText.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+    if (embeddedMatch) {
+      cleanText = embeddedMatch[1].trim();
+    }
   }
 
   let parsed: unknown;

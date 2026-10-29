@@ -22,15 +22,22 @@ import {
   handleApiError,
   ConfigurationError,
   MissingApiKeyError,
+  DiagnosisParsingError,
+  ReassessmentParsingError,
+  ModelRefusalError,
   META_API_BASE_URL,
   DEFAULT_MODEL,
   BASETEN_API_BASE_URL,
   BASETEN_DEFAULT_MODEL,
+  extractMessageContent,
+  setTestPromptOverrideForTesting,
   setAnalyzerOverrideForTesting,
   setReassessmentAnalyzerOverrideForTesting,
   analyzeCircuitImage,
   reassessCircuitEvidence,
 } from './metaClient.js';
+import { parseDiagnosisJson } from './diagnosisValidation.js';
+import { parseReassessmentJson } from './reassessmentValidation.js';
 import type { DiagnosisRequest, DiagnosisReassessmentRequest, DiagnosisResponse, DiagnosisReassessmentResponse } from './types/diagnosis.js';
 
 let passedCount = 0;
@@ -450,6 +457,220 @@ async function runProviderTests() {
     assert(res4.status === 200, 'Health endpoint returns HTTP 200 even with bad configuration');
     assert(json4.status === 'error', 'Health payload status is "error"');
     assert(Boolean(json4.configurationError), 'Health payload includes configurationError detail');
+    // -------------------------------------------------------------------------
+    // SECTION 7: Model Response Extraction, Parsing & Reasoning Support
+    // -------------------------------------------------------------------------
+    console.log('\n--- SECTION 7: Model Response Extraction, Parsing & Reasoning Support ---');
+
+    // Case 7.1: Normal string text content extraction
+    const normalChoice = {
+      message: { role: 'assistant', content: 'CircuitLens connection successful!' },
+    };
+    const extractedNormal = extractMessageContent(normalChoice);
+    assert(extractedNormal === 'CircuitLens connection successful!', 'Normal string content extracted successfully');
+
+    // Case 7.2: Empty, whitespace, null, and missing content handling
+    assert(extractMessageContent({ message: { content: '' } }) === '', 'Empty string content extracts as ""');
+    assert(extractMessageContent({ message: { content: '   \n  ' } }) === '', 'Whitespace-only content extracts as ""');
+    assert(extractMessageContent({ message: { content: null } }) === '', 'Null content extracts as ""');
+    assert(extractMessageContent({ message: {} }) === '', 'Missing content field extracts as ""');
+    assert(extractMessageContent(undefined) === '', 'Undefined choice extracts as ""');
+    assert(extractMessageContent(null) === '', 'Null choice extracts as ""');
+
+    // Case 7.3: Multimodal array of content parts extraction
+    const partsChoice = {
+      message: {
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'Diagnostic analysis' },
+          { type: 'text', text: 'confirmed short circuit.' },
+        ],
+      },
+    };
+    const extractedParts = extractMessageContent(partsChoice);
+    assert(
+      extractedParts === 'Diagnostic analysis\nconfirmed short circuit.',
+      'Array of content parts extracted and joined with newline'
+    );
+
+    const stringPartsChoice = {
+      message: {
+        role: 'assistant',
+        content: ['First observation.', 'Second observation.'],
+      },
+    };
+    assert(
+      extractMessageContent(stringPartsChoice) === 'First observation.\nSecond observation.',
+      'Array of plain string parts extracted and joined'
+    );
+
+    // Case 7.4: Reasoning content NOT accepted by default (strict separation of reasoning from diagnosis)
+    const reasoningChoice = {
+      message: {
+        role: 'assistant',
+        content: null,
+        reasoning_content: 'Internal reasoning trace: capacitor C12 is cracked.',
+      },
+    };
+    // Default extraction (allowReasoningFallback: false): reasoning is ignored to prevent scratchpad from becoming diagnosis
+    assert(
+      extractMessageContent(reasoningChoice) === '',
+      'Default extractMessageContent strictly ignores reasoning_content when content is null'
+    );
+    // Explicit opt-in (allowReasoningFallback: true)
+    assert(
+      extractMessageContent(reasoningChoice, { allowReasoningFallback: true }) ===
+        'Internal reasoning trace: capacitor C12 is cracked.',
+      'Explicit allowReasoningFallback extracts reasoning_content when enabled'
+    );
+
+    const reasoningAltChoice = {
+      message: {
+        role: 'assistant',
+        content: '',
+        reasoning: 'Internal reasoning trace: alternative field.',
+      },
+    };
+    assert(
+      extractMessageContent(reasoningAltChoice) === '',
+      'Default extractMessageContent strictly ignores alternative reasoning field when content is empty'
+    );
+    assert(
+      extractMessageContent(reasoningAltChoice, { allowReasoningFallback: true }) ===
+        'Internal reasoning trace: alternative field.',
+      'Explicit allowReasoningFallback extracts alternative reasoning field'
+    );
+
+    // Case 7.5: Model refusal handling (throws ModelRefusalError, mapped to HTTP 422)
+    const refusalChoice = {
+      message: {
+        role: 'assistant',
+        content: null,
+        refusal: 'I cannot analyze this schematic due to policy restrictions.',
+      },
+    };
+    let refusalThrew = false;
+    try {
+      extractMessageContent(refusalChoice);
+    } catch (err) {
+      refusalThrew = true;
+      assert(err instanceof ModelRefusalError, 'Model refusal throws ModelRefusalError');
+      assert((err as Error).message.includes('policy restrictions'), 'Refusal message preserved');
+      const normalizedRefusal = handleApiError(err);
+      assert(normalizedRefusal.statusCode === 422, 'Refusal maps to HTTP 422');
+      assert(normalizedRefusal.errorType === 'MODEL_REFUSAL', 'Refusal errorType is MODEL_REFUSAL');
+    }
+    assert(refusalThrew, 'Refusal never accepted as valid content');
+
+    // Case 7.6: Legacy text completion property
+    const legacyTextChoice = { text: 'Legacy completion format response.' };
+    assert(
+      extractMessageContent(legacyTextChoice) === 'Legacy completion format response.',
+      'Legacy choice.text property extracted correctly when message is absent'
+    );
+
+    // Case 7.7: sendMetaTestPrompt surfaces structured error on empty response or reasoning-only response
+    setTestPromptOverrideForTesting(async () => {
+      throw new DiagnosisParsingError(
+        'Model emitted reasoning tokens (150 tokens, finish_reason: length) but produced no final content. Increase max_tokens or check model reasoning settings.'
+      );
+    });
+
+    let emptyPromptThrew = false;
+    try {
+      await app; // ensure app loaded
+      const normalizedEmpty = handleApiError(
+        new DiagnosisParsingError(
+          'Model emitted reasoning tokens (150 tokens, finish_reason: length) but produced no final content. Increase max_tokens or check model reasoning settings.'
+        )
+      );
+      assert(normalizedEmpty.statusCode === 502, 'Reasoning-only output maps to HTTP 502');
+      assert(normalizedEmpty.errorType === 'INVALID_MODEL_OUTPUT', 'Error type is INVALID_MODEL_OUTPUT');
+      assert(normalizedEmpty.message.includes('reasoning tokens'), 'Error message identifies reasoning tokens');
+      emptyPromptThrew = true;
+    } finally {
+      setTestPromptOverrideForTesting(null);
+    }
+    assert(emptyPromptThrew, 'Reasoning-only response correctly surfaced as structured error');
+
+    // Case 7.8: parseDiagnosisJson strips <think>...</think> reasoning blocks before parsing
+    const reasoningDiagnosisJson = `<think>
+I need to analyze this circuit carefully.
+The ceramic capacitor C12 is cracked.
+</think>
+\`\`\`json
+${JSON.stringify(MOCK_DIAGNOSIS)}
+\`\`\``;
+    const parsedWithThinking = parseDiagnosisJson(reasoningDiagnosisJson);
+    assert(parsedWithThinking.summary === MOCK_DIAGNOSIS.summary, 'parseDiagnosisJson strips <think> tags and parses JSON successfully');
+    assert(parsedWithThinking.visibleObservations.length === 1, 'Observations preserved after thinking tag stripping');
+
+    // Case 7.9: parseDiagnosisJson rejects unclosed <think> tag indicating truncation
+    let unclosedThinkThrew = false;
+    try {
+      parseDiagnosisJson('<think>\nAnalyzing circuit image and then cutoff due to token limit');
+    } catch (err) {
+      unclosedThinkThrew = true;
+      assert(err instanceof DiagnosisParsingError, 'Unclosed <think> throws DiagnosisParsingError');
+      assert((err as Error).message.includes('truncated inside reasoning'), 'Error identifies truncation inside reasoning');
+    }
+    assert(unclosedThinkThrew, 'Unclosed <think> tag rejected');
+
+    // Case 7.10: parseDiagnosisJson rejects pure <think> reasoning without final JSON
+    let pureThinkThrew = false;
+    try {
+      parseDiagnosisJson('<think>\nJust some internal thoughts\n</think>');
+    } catch (err) {
+      pureThinkThrew = true;
+      assert(err instanceof DiagnosisParsingError, 'Pure <think> block throws DiagnosisParsingError');
+      assert((err as Error).message.includes('only reasoning tags'), 'Error identifies only reasoning tags present');
+    }
+    assert(pureThinkThrew, 'Pure <think> block without diagnosis JSON rejected');
+
+    // Case 7.11: parseReassessmentJson strips <think>...</think> reasoning blocks before parsing
+    const reasoningReassessmentJson = `<think>
+Synthesizing evidence record ev-101 measuring 0.8 ohms...
+</think>
+${JSON.stringify(MOCK_REASSESSMENT)}`;
+    const parsedReassessmentWithThinking = parseReassessmentJson(reasoningReassessmentJson);
+    assert(
+      parsedReassessmentWithThinking.summary === MOCK_REASSESSMENT.summary,
+      'parseReassessmentJson strips <think> tags and parses JSON successfully'
+    );
+    assert(
+      parsedReassessmentWithThinking.revisedHypotheses[0].status === 'supported',
+      'Hypothesis status preserved after thinking tag stripping'
+    );
+
+    // Case 7.12: parseReassessmentJson rejects unclosed <think> tag indicating truncation
+    let unclosedReassessThinkThrew = false;
+    try {
+      parseReassessmentJson('<think>\nAnalyzing evidence and truncated');
+    } catch (err) {
+      unclosedReassessThinkThrew = true;
+      assert(err instanceof ReassessmentParsingError, 'Unclosed <think> in reassessment throws ReassessmentParsingError');
+      assert((err as Error).message.includes('truncated inside reasoning'), 'Error identifies truncation inside reasoning');
+    }
+    assert(unclosedReassessThinkThrew, 'Unclosed <think> in reassessment rejected');
+
+    // Case 7.13: parseDiagnosisJson and parseReassessmentJson reject empty and non-string outputs
+    let parseEmptyThrew = false;
+    try {
+      parseDiagnosisJson('');
+    } catch (err) {
+      parseEmptyThrew = true;
+      assert(err instanceof DiagnosisParsingError, 'Empty string in parseDiagnosisJson throws DiagnosisParsingError');
+    }
+    assert(parseEmptyThrew, 'Empty string rejected by parseDiagnosisJson');
+
+    let reassessEmptyThrew = false;
+    try {
+      parseReassessmentJson('   ');
+    } catch (err) {
+      reassessEmptyThrew = true;
+      assert(err instanceof ReassessmentParsingError, 'Whitespace string in parseReassessmentJson throws ReassessmentParsingError');
+    }
+    assert(reassessEmptyThrew, 'Whitespace string rejected by parseReassessmentJson');
   } finally {
     if (server) {
       (server as Server).close();
