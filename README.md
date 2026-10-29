@@ -36,9 +36,9 @@ Modern multimodal AI models can identify visual defects, but naive chat implemen
        | (OpenAI-compatible vision)                                    | (Structured text context)
        v                                                               v
 +-----------------------------------------------------------------------------------+
-|                                 META MODEL API                                    |
-|                        (Endpoint: https://api.meta.ai/v1)                         |
-|                             Model: muse-spark-1.3                                 |
+|                     MODEL PROVIDER (CONFIGURABLE VIA .ENV)                        |
+|  - Meta Model API (default): https://api.meta.ai/v1      (Model: muse-spark-1.3)  |
+|  - Baseten:                  https://inference.baseten.co/v1 (muse-spark-open)   |
 +-----------------------------------------------------------------------------------+
        |                                                               |
        | Raw JSON Completion                                           | Raw JSON Completion
@@ -208,13 +208,24 @@ interface DiagnosisReassessmentResponse {
    ```
 2. Configure your environment variables:
    ```env
-   # Meta Model API Key for CircuitLens (required for live inference)
+   # Model Provider Selection: "meta" (default) or "baseten"
+   MODEL_PROVIDER=meta
+
+   # Required if MODEL_PROVIDER=meta (or omitted):
    MODEL_API_KEY=your_actual_meta_model_api_key_here
+
+   # Required if MODEL_PROVIDER=baseten:
+   BASETEN_API_KEY=your_actual_baseten_api_key_here
+
+   # Optional custom overrides:
+   # MODEL_BASE_URL=https://inference.baseten.co/v1
+   # MODEL_NAME=meta-models/muse-spark-open
 
    # Backend server listening port (default: 4000)
    PORT=4000
    ```
-> ⚠️ **Security Notice:** The `.env` file is excluded from version control via `.gitignore`. Never commit API keys or paste credentials into client code.
+
+> ⚠️ **Security Notice:** The `.env` file is excluded from version control via `.gitignore`. Never commit API keys or paste credentials into client code. Offline tests do NOT contact either provider and consume zero API credits.
 
 ---
 
@@ -251,40 +262,50 @@ npm run start
 
 ## 7. Verification & Offline Automated Test Suites
 
-CircuitLens includes comprehensive offline test suites that execute **190 static assertions** across 4 suites using mock analyzers and ephemeral local servers. **Zero external API calls are made and zero model credits are consumed during testing.**
+CircuitLens includes comprehensive offline test suites that execute **255 assertions** across 6 suites (5 server test suites and 1 client test suite) using mock analyzers and ephemeral local servers. **Zero external API calls are made and zero model credits are consumed during testing.**
 
-Execute all backend test suites with:
+Execute all test suites across the entire repository with:
 ```powershell
-npm --prefix server run test
+npm test
 ```
 
 ### Individual Test Suites
 
-1. **Diagnosis Request & Response Validation (`test:validation`)**
+1. **Provider Configuration & Credential Isolation (`test:provider`)**
+   ```powershell
+   npm --prefix server run test:provider
+   ```
+   - **Coverage (74 assertions):** Provider resolution (`meta` default, `baseten`), credential isolation without cross-fallback, client instantiation with base URLs and models, bounded timeouts (45s), zero retries, and `/api/health` provider telemetry.
+
+2. **Diagnosis Request & Response Validation (`test:validation`)**
    ```powershell
    npm --prefix server run test:validation
    ```
-   - **Coverage (43 assertions):** Image data URL parsing, JPEG/PNG/WebP magic-byte signatures, payload size limits, request string bounds, response schema checking, markdown fence stripping, and error sanitization.
+   - **Coverage (37 assertions):** Image data URL parsing, JPEG/PNG/WebP magic-byte signatures, payload size limits, request string bounds, response schema checking, markdown fence stripping, and error sanitization.
 
-2. **Diagnosis Endpoint Integration (`test:endpoint`)**
+3. **Diagnosis Endpoint Integration (`test:endpoint`)**
    ```powershell
    npm --prefix server run test:endpoint
    ```
-   - **Coverage (29 assertions):** Ephemeral server startup, `/api/health` probe, `/api/test-meta` missing key behavior, valid `/api/diagnose` routing with mock analyzer, credit protection preventing upstream model calls when inputs are invalid, and payload size limit enforcement.
+   - **Coverage (28 assertions):** Ephemeral server startup, `/api/health` probe, missing key behavior, valid `/api/diagnose` routing with mock analyzer, credit protection preventing upstream model calls when inputs are invalid, and payload size limit enforcement.
 
-3. **Reassessment Validation & Citations (`test:reassessment-validation`)**
+4. **Reassessment Validation & Citations (`test:reassessment-validation`)**
    ```powershell
    npm --prefix server run test:reassessment-validation
    ```
-   - **Coverage (72 assertions):** Reassessment request structure, evidence record schema, measurement-pair validation (`numericValue` + `measurementUnit`), ISO 8601 calendar date rollover verification, cross-record supersession integrity, cautious status enums, response bound checks, hallucinated citation rejection, and mandatory safety warning validation.
+   - **Coverage (54 assertions):** Reassessment request structure, evidence record schema, measurement-pair validation (`numericValue` + `measurementUnit`), ISO 8601 calendar date rollover verification, cross-record supersession integrity, cautious status enums, response bound checks, hallucinated citation rejection, and mandatory safety warning validation.
 
-4. **Reassessment Endpoint Integration (`test:reassessment-endpoint`)**
+5. **Reassessment Endpoint Integration (`test:reassessment-endpoint`)**
    ```powershell
    npm --prefix server run test:reassessment-endpoint
    ```
-   - **Coverage (46 assertions):** Ephemeral server startup, POST `/api/reassess` integration with mock analyzer, credit protection on invalid evidence lists, supersession reasoning injected into model prompt, prompt framing forbidding image re-examination, response parsing/validation, and upstream error normalization.
+   - **Coverage (45 assertions):** Ephemeral server startup, POST `/api/reassess` integration with mock analyzer, credit protection on invalid evidence lists, supersession reasoning injected into model prompt, prompt framing forbidding image re-examination, response parsing/validation, and upstream error normalization.
 
-*(Note: Automated tests currently cover backend contracts, endpoints, and validation logic. Automated frontend integration tests are not included in the repository.)*
+6. **Client Service & Lifecycle Tests (`client test`)**
+   ```powershell
+   npm --prefix client test
+   ```
+   - **Coverage (17 assertions):** Client-side cancellation, boundary validation, evidence form limits, recommendation ID determinism, and component unmount abort simulation.
 
 ---
 

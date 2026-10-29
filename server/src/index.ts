@@ -4,10 +4,12 @@ import cors from 'cors';
 import {
   META_API_BASE_URL,
   DEFAULT_MODEL,
+  resolveProviderConfig,
   sendMetaTestPrompt,
   analyzeCircuitImage,
   reassessCircuitEvidence,
   handleApiError,
+  type ProviderConfig,
 } from './metaClient.js';
 import { validateDiagnosisRequest } from './diagnosisRequestValidation.js';
 import { validateReassessmentRequest } from './reassessmentValidation.js';
@@ -25,18 +27,38 @@ app.use(express.json({ limit: '100kb' }));
 
 // Basic health check endpoint
 app.get('/api/health', (_req: Request, res: Response) => {
-  const hasKey = Boolean(
-    process.env.MODEL_API_KEY &&
-      process.env.MODEL_API_KEY.trim() !== '' &&
-      process.env.MODEL_API_KEY !== 'your_meta_model_api_key_here'
-  );
+  let providerConfig: ProviderConfig;
+  let configError: string | null = null;
+  try {
+    providerConfig = resolveProviderConfig();
+  } catch (err) {
+    configError = err instanceof Error ? err.message : 'Invalid configuration';
+    providerConfig = {
+      provider: 'meta',
+      baseUrl: META_API_BASE_URL,
+      model: DEFAULT_MODEL,
+      apiKeyEnvVar: 'MODEL_API_KEY',
+    };
+  }
+
+  const rawKey = process.env[providerConfig.apiKeyEnvVar];
+  const placeholder =
+    providerConfig.provider === 'meta'
+      ? 'your_meta_model_api_key_here'
+      : 'your_baseten_api_key_here';
+  const hasKey = Boolean(rawKey && rawKey.trim() !== '' && rawKey !== placeholder);
+
   res.json({
-    status: 'ok',
+    status: configError ? 'error' : 'ok',
     service: 'CircuitLens Backend API',
+    provider: providerConfig.provider,
     apiKeyConfigured: hasKey,
-    targetModel: DEFAULT_MODEL,
-    metaBaseUrl: META_API_BASE_URL,
+    apiKeyEnvVar: providerConfig.apiKeyEnvVar,
+    targetModel: providerConfig.model,
+    baseUrl: providerConfig.baseUrl,
+    metaBaseUrl: providerConfig.baseUrl,
     timestamp: new Date().toISOString(),
+    ...(configError ? { configurationError: configError } : {}),
   });
 });
 
@@ -231,22 +253,42 @@ const isDirectRun = Boolean(
 );
 
 if (isDirectRun) {
+  let activeConfig: ProviderConfig;
+  try {
+    activeConfig = resolveProviderConfig();
+  } catch {
+    activeConfig = {
+      provider: 'meta',
+      baseUrl: META_API_BASE_URL,
+      model: DEFAULT_MODEL,
+      apiKeyEnvVar: 'MODEL_API_KEY',
+    };
+  }
+
   app.listen(PORT, () => {
     console.log(`CircuitLens backend server running on http://localhost:${PORT}`);
     console.log(`- Health check:     GET  http://localhost:${PORT}/api/health`);
-    console.log(`- Meta Test (GET):  GET  http://localhost:${PORT}/api/test-meta`);
-    console.log(`- Meta Test (POST): POST http://localhost:${PORT}/api/test-meta`);
+    console.log(`- Model Test (GET): GET  http://localhost:${PORT}/api/test-meta`);
+    console.log(`- Model Test (POST):POST http://localhost:${PORT}/api/test-meta`);
     console.log(`- Circuit Diagnose: POST http://localhost:${PORT}/api/diagnose`);
     console.log(`- Reassessment:     POST http://localhost:${PORT}/api/reassess`);
-    console.log(`- Target Model:     ${DEFAULT_MODEL}`);
-    console.log(`- Meta Base URL:    ${META_API_BASE_URL}`);
+    console.log(`- Active Provider:  ${activeConfig.provider}`);
+    console.log(`- Target Model:     ${activeConfig.model}`);
+    console.log(`- Base URL:         ${activeConfig.baseUrl}`);
+    console.log(`- API Key Variable: ${activeConfig.apiKeyEnvVar}`);
 
-    if (!process.env.MODEL_API_KEY || process.env.MODEL_API_KEY === 'your_meta_model_api_key_here') {
+    const key = process.env[activeConfig.apiKeyEnvVar];
+    const placeholder =
+      activeConfig.provider === 'meta'
+        ? 'your_meta_model_api_key_here'
+        : 'your_baseten_api_key_here';
+
+    if (!key || key === placeholder) {
       console.warn(
-        `[WARNING] MODEL_API_KEY is not configured yet in .env! Requests to /api/diagnose and /api/test-meta will return a missing key error.`
+        `[WARNING] ${activeConfig.apiKeyEnvVar} is not configured yet in .env! Requests to /api/diagnose and /api/test-meta will return a missing key error.`
       );
     } else {
-      console.log(`[INFO] MODEL_API_KEY is detected.`);
+      console.log(`[INFO] ${activeConfig.apiKeyEnvVar} is detected.`);
     }
   });
 }

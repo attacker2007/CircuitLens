@@ -1,34 +1,44 @@
 import 'dotenv/config';
 import {
-  DEFAULT_MODEL,
-  META_API_BASE_URL,
+  resolveProviderConfig,
   sendMetaTestPrompt,
   handleApiError,
 } from './metaClient.js';
 
 async function runCliTest() {
-  console.log('='.repeat(60));
-  console.log(' CircuitLens - Meta Model API Connectivity Test');
-  console.log('='.repeat(60));
-  console.log(`Endpoint: ${META_API_BASE_URL}`);
-  console.log(`Model:    ${DEFAULT_MODEL}`);
+  let config;
+  try {
+    config = resolveProviderConfig();
+  } catch (err) {
+    console.error('[CONFIGURATION ERROR]', err instanceof Error ? err.message : err);
+    process.exit(1);
+  }
 
-  const hasKey = Boolean(
-    process.env.MODEL_API_KEY &&
-    process.env.MODEL_API_KEY.trim() !== '' &&
-    process.env.MODEL_API_KEY !== 'your_meta_model_api_key_here'
-  );
+  console.log('='.repeat(60));
+  console.log(` CircuitLens - Model API Connectivity Test [${config.provider.toUpperCase()}]`);
+  console.log('='.repeat(60));
+  console.log(`Provider: ${config.provider}`);
+  console.log(`Endpoint: ${config.baseUrl}`);
+  console.log(`Model:    ${config.model}`);
+  console.log(`Key Var:  ${config.apiKeyEnvVar}`);
+
+  const rawKey = process.env[config.apiKeyEnvVar];
+  const placeholder =
+    config.provider === 'meta'
+      ? 'your_meta_model_api_key_here'
+      : 'your_baseten_api_key_here';
+  const hasKey = Boolean(rawKey && rawKey.trim() !== '' && rawKey !== placeholder);
 
   console.log(`API Key:  ${hasKey ? 'Configured [REDACTED]' : 'MISSING / PLACEHOLDER'}`);
   console.log('-'.repeat(60));
 
   try {
-    console.log('Sending test prompt to Meta Model API...');
+    console.log(`Sending test prompt to ${config.provider === 'baseten' ? 'Baseten' : 'Meta'} Model API...`);
     const result = await sendMetaTestPrompt({
       prompt: 'Hello! Please confirm API connectivity by replying with: "CircuitLens connection successful!"',
     });
 
-    console.log('\n[SUCCESS] Response received from Meta Model API:');
+    console.log(`\n[SUCCESS] Response received from ${config.provider === 'baseten' ? 'Baseten' : 'Meta'} Model API:`);
     console.log(`- Model:      ${result.model}`);
     console.log(`- Duration:   ${result.durationMs}ms`);
     if (result.usage) {
@@ -41,7 +51,7 @@ async function runCliTest() {
     process.exit(0);
   } catch (err) {
     const normalized = handleApiError(err);
-    console.error('\n[FAILED] Meta Model API Connectivity Test failed:');
+    console.error(`\n[FAILED] ${config.provider === 'baseten' ? 'Baseten' : 'Meta'} Model API Connectivity Test failed:`);
     console.error(`- Error Code: ${normalized.errorType} (HTTP ${normalized.statusCode})`);
     console.error(`- Message:    ${normalized.message}\n`);
     console.log('='.repeat(60));

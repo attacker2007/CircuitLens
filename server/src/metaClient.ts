@@ -20,7 +20,86 @@ import {
 
 export const META_API_BASE_URL = 'https://api.meta.ai/v1';
 export const DEFAULT_MODEL = 'muse-spark-1.3';
+export const BASETEN_API_BASE_URL = 'https://inference.baseten.co/v1';
+export const BASETEN_DEFAULT_MODEL = 'meta-models/muse-spark-open';
 export const REQUEST_TIMEOUT_MS = 45000;
+
+export type ModelProvider = 'meta' | 'baseten';
+
+export interface ProviderConfig {
+  provider: ModelProvider;
+  baseUrl: string;
+  model: string;
+  apiKeyEnvVar: 'MODEL_API_KEY' | 'BASETEN_API_KEY';
+}
+
+export const PROVIDER_CONFIGS: Record<ModelProvider, Omit<ProviderConfig, 'provider'>> = {
+  meta: {
+    baseUrl: META_API_BASE_URL,
+    model: DEFAULT_MODEL,
+    apiKeyEnvVar: 'MODEL_API_KEY',
+  },
+  baseten: {
+    baseUrl: BASETEN_API_BASE_URL,
+    model: BASETEN_DEFAULT_MODEL,
+    apiKeyEnvVar: 'BASETEN_API_KEY',
+  },
+};
+
+export class ConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ConfigurationError';
+  }
+}
+
+/**
+ * Resolves the active model provider configuration from environment variables.
+ * Default behavior: when MODEL_PROVIDER is omitted or empty, selects 'meta' for backward compatibility.
+ * Throws ConfigurationError if an unsupported provider identifier is supplied.
+ */
+export function resolveProviderConfig(): ProviderConfig {
+  const rawProvider = process.env.MODEL_PROVIDER?.trim().toLowerCase();
+  const provider: ModelProvider = !rawProvider ? 'meta' : (rawProvider as ModelProvider);
+
+  if (provider !== 'meta' && provider !== 'baseten') {
+    throw new ConfigurationError(
+      `Invalid MODEL_PROVIDER "${process.env.MODEL_PROVIDER}". Supported providers are: "meta", "baseten".`
+    );
+  }
+
+  const baseConfig = PROVIDER_CONFIGS[provider];
+  const baseUrl = process.env.MODEL_BASE_URL?.trim() || baseConfig.baseUrl;
+  const model = process.env.MODEL_NAME?.trim() || baseConfig.model;
+
+  return {
+    provider,
+    baseUrl,
+    model,
+    apiKeyEnvVar: baseConfig.apiKeyEnvVar,
+  };
+}
+
+/**
+ * Validates and retrieves the required API key for the active provider.
+ * Does not silently fall back to an alternate provider's key if the active key is missing.
+ */
+export function getProviderApiKey(config: ProviderConfig): string {
+  const key = process.env[config.apiKeyEnvVar]?.trim();
+  const placeholder =
+    config.provider === 'meta'
+      ? 'your_meta_model_api_key_here'
+      : 'your_baseten_api_key_here';
+
+  if (!key || key === placeholder) {
+    throw new MissingApiKeyError(
+      `Missing API key: ${config.apiKeyEnvVar} environment variable is not configured. ` +
+      `Please copy .env.example to .env and set your valid ${config.provider === 'meta' ? 'Meta' : 'Baseten'} Model API key.`
+    );
+  }
+
+  return key;
+}
 
 export {
   DiagnosisValidationError,
@@ -57,34 +136,39 @@ export interface TestPromptResponse {
 }
 
 /**
- * Returns an OpenAI-compatible client configured for Meta Model API.
- * Validates that MODEL_API_KEY is present and not a placeholder.
- * Enforces a 45-second finite timeout and zero automatic retries to avoid unexpected credit usage.
+ * Creates an OpenAI-compatible client configured for the resolved provider (Meta or Baseten).
+ * Enforces bounded timeout (45s) and zero automatic retries to avoid unexpected credit usage.
  */
-export function createMetaClient(options?: { timeout?: number; maxRetries?: number }): OpenAI {
-  const apiKey = process.env.MODEL_API_KEY?.trim();
+export function createApiClient(options?: {
+  timeout?: number;
+  maxRetries?: number;
+}): { client: OpenAI; config: ProviderConfig } {
+  const config = resolveProviderConfig();
+  const apiKey = getProviderApiKey(config);
 
-  if (!apiKey || apiKey === 'your_meta_model_api_key_here') {
-    throw new MissingApiKeyError(
-      'Missing API key: MODEL_API_KEY environment variable is not configured. ' +
-      'Please copy .env.example to .env and set your valid Meta Model API key.'
-    );
-  }
-
-  return new OpenAI({
+  const client = new OpenAI({
     apiKey,
-    baseURL: META_API_BASE_URL,
+    baseURL: config.baseUrl,
     timeout: options?.timeout ?? REQUEST_TIMEOUT_MS,
     maxRetries: options?.maxRetries ?? 0,
   });
+
+  return { client, config };
+}
+
+/**
+ * Backward-compatible client factory returning the configured OpenAI SDK client instance.
+ */
+export function createMetaClient(options?: { timeout?: number; maxRetries?: number }): OpenAI {
+  return createApiClient(options).client;
 }
 
 /**
  * Sends a minimal test prompt to the Meta Model API and returns the result.
  */
 export async function sendMetaTestPrompt(options?: TestPromptOptions): Promise<TestPromptResponse> {
-  const client = createMetaClient();
-  const model = options?.model || DEFAULT_MODEL;
+  const { client, config } = createApiClient();
+  const model = options?.model || config.model;
   const prompt = options?.prompt || 'Hello! Please confirm API connectivity by answering in one short sentence.';
 
   const startTime = Date.now();
@@ -225,11 +309,11 @@ export async function analyzeCircuitImage(
     return analyzerOverride(request, options);
   }
 
-  const client = createMetaClient();
+  const { client, config } = createApiClient();
 
   const completion = await client.chat.completions.create(
     {
-      model: DEFAULT_MODEL,
+      model: config.model,
       messages: [
         {
           role: 'system',
@@ -448,11 +532,11 @@ export async function reassessCircuitEvidence(
     return reassessmentAnalyzerOverride(request, options);
   }
 
-  const client = createMetaClient();
+  const { client, config } = createApiClient();
 
   const completion = await client.chat.completions.create(
     {
-      model: DEFAULT_MODEL,
+      model: config.model,
       messages: [
         {
           role: 'system',
@@ -489,6 +573,14 @@ export interface NormalizedApiError {
  * Sanitizes and maps errors to prevent leaking sensitive credentials, prompts, or images in responses or logs.
  */
 export function handleApiError(error: unknown): NormalizedApiError {
+  if (error instanceof ConfigurationError) {
+    return {
+      statusCode: 500,
+      errorType: 'CONFIGURATION_ERROR',
+      message: error.message,
+    };
+  }
+
   if (error instanceof MissingApiKeyError) {
     return {
       statusCode: 500,
@@ -545,7 +637,7 @@ export function handleApiError(error: unknown): NormalizedApiError {
     return {
       statusCode: 504,
       errorType: 'GATEWAY_TIMEOUT',
-      message: `Request to Meta Model API timed out after ${Math.round(REQUEST_TIMEOUT_MS / 1000)} seconds.`,
+      message: `Request to model API timed out after ${Math.round(REQUEST_TIMEOUT_MS / 1000)} seconds.`,
     };
   }
 
@@ -553,7 +645,7 @@ export function handleApiError(error: unknown): NormalizedApiError {
     return {
       statusCode: 401,
       errorType: 'AUTHENTICATION_ERROR',
-      message: 'Authentication failed (401): Invalid, expired, or unauthorized MODEL_API_KEY.',
+      message: 'Authentication failed (401): Invalid, expired, or unauthorized model API key.',
     };
   }
 
@@ -569,15 +661,21 @@ export function handleApiError(error: unknown): NormalizedApiError {
     return {
       statusCode: 429,
       errorType: 'RATE_LIMIT_EXCEEDED',
-      message: 'Rate limit exceeded (429): Meta Model API rate limit reached. Please retry later.',
+      message: 'Rate limit exceeded (429): Model API rate limit reached. Please retry later.',
     };
   }
 
   if (error instanceof OpenAI.APIConnectionError) {
+    let targetBase = META_API_BASE_URL;
+    try {
+      targetBase = resolveProviderConfig().baseUrl;
+    } catch {
+      // fallback to default
+    }
     return {
       statusCode: 503,
       errorType: 'CONNECTION_ERROR',
-      message: `Failed to connect to Meta Model API at ${META_API_BASE_URL}. Check your internet connection or proxy settings.`,
+      message: `Failed to connect to model API at ${targetBase}. Check your internet connection or proxy settings.`,
     };
   }
 
@@ -587,7 +685,7 @@ export function handleApiError(error: unknown): NormalizedApiError {
     return {
       statusCode: error.status || 500,
       errorType: 'UPSTREAM_API_ERROR',
-      message: `Meta Model API error (${error.status || 'unknown'}): ${sanitizedMsg}`,
+      message: `Model API error (${error.status || 'unknown'}): ${sanitizedMsg}`,
     };
   }
 
