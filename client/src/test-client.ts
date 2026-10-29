@@ -18,7 +18,13 @@ import {
   submitCircuitDiagnosis,
   submitCircuitReassessment,
   DiagnosisClientError,
+  DEFAULT_TIMEOUT_MS,
 } from './api/diagnosisClient.ts';
+import {
+  calculateTargetDimensions,
+  shouldOptimizeImage,
+  optimizeImageForDiagnosis,
+} from './utils/imageOptimizer.ts';
 import {
   validateEvidenceForm,
   generateRecommendationId,
@@ -509,5 +515,174 @@ describe('Component Lifecycle & Cancellation Cleanup Simulation', () => {
       assert.strictEqual(result, 'aborted');
       assert.strictEqual(stateDispatchedAfterUnmount, false);
     });
+  });
+});
+
+describe('CircuitLens Stage 5C-3D: Image Payload Optimization & Timeout Alignment', () => {
+  it('preserves aspect ratio and scales landscape images to max 1800 px', () => {
+    const res = calculateTargetDimensions(4000, 3000, 1800);
+    assert.strictEqual(res.width, 1800);
+    assert.strictEqual(res.height, 1350);
+    assert.strictEqual(res.scaled, true);
+    assert.strictEqual(res.scaleFactor, 0.45);
+    // Aspect ratio check (4:3)
+    assert.strictEqual(res.width / res.height, 4000 / 3000);
+  });
+
+  it('preserves aspect ratio and scales portrait images to max 1800 px', () => {
+    const res = calculateTargetDimensions(2400, 3600, 1800);
+    assert.strictEqual(res.width, 1200);
+    assert.strictEqual(res.height, 1800);
+    assert.strictEqual(res.scaled, true);
+    assert.strictEqual(res.scaleFactor, 0.5);
+    // Aspect ratio check (2:3)
+    assert.strictEqual(res.width / res.height, 2400 / 3600);
+  });
+
+  it('preserves square aspect ratio at max 1800 px', () => {
+    const res = calculateTargetDimensions(2500, 2500, 1800);
+    assert.strictEqual(res.width, 1800);
+    assert.strictEqual(res.height, 1800);
+    assert.strictEqual(res.scaled, true);
+  });
+
+  it('never upscales images smaller than max dimension', () => {
+    const res = calculateTargetDimensions(1024, 768, 1800);
+    assert.strictEqual(res.width, 1024);
+    assert.strictEqual(res.height, 768);
+    assert.strictEqual(res.scaled, false);
+    assert.strictEqual(res.scaleFactor, 1.0);
+  });
+
+  it('preserves exact dimensions for boundary images (1800x1200)', () => {
+    const res = calculateTargetDimensions(1800, 1200, 1800);
+    assert.strictEqual(res.width, 1800);
+    assert.strictEqual(res.height, 1200);
+    assert.strictEqual(res.scaled, false);
+  });
+
+  it('rejects invalid or non-positive image dimensions with INVALID_IMAGE error', () => {
+    assert.throws(
+      () => calculateTargetDimensions(0, 500, 1800),
+      (err: unknown) => {
+        if (!(err instanceof DiagnosisClientError)) return false;
+        assert.strictEqual(err.errorType, 'INVALID_IMAGE');
+        assert.strictEqual(err.statusCode, 400);
+        return true;
+      }
+    );
+
+    assert.throws(
+      () => calculateTargetDimensions(-100, -200, 1800),
+      (err: unknown) => {
+        if (!(err instanceof DiagnosisClientError)) return false;
+        assert.strictEqual(err.errorType, 'INVALID_IMAGE');
+        return true;
+      }
+    );
+  });
+
+  it('determines whether an image requires optimization correctly', () => {
+    // 1. Oversized dimensions (> 1800) -> always optimize
+    assert.strictEqual(
+      shouldOptimizeImage({ width: 3000, height: 2000 }, 500_000, 1800, 1024 * 1024),
+      true
+    );
+    assert.strictEqual(
+      shouldOptimizeImage({ width: 1200, height: 2400 }, 500_000, 1800, 1024 * 1024),
+      true
+    );
+
+    // 2. In-bounds dimensions and small file size (<= 1 MiB) -> do NOT optimize (preserve fine traces)
+    assert.strictEqual(
+      shouldOptimizeImage({ width: 1200, height: 900 }, 400_000, 1800, 1024 * 1024),
+      false
+    );
+
+    // 3. In-bounds dimensions but large raw file (> 1 MiB, e.g. uncompressed PNG) -> optimize
+    assert.strictEqual(
+      shouldOptimizeImage({ width: 1600, height: 1200 }, 3_000_000, 1800, 1024 * 1024),
+      true
+    );
+  });
+
+  it('fills solid white background for transparent source images and exports valid JPEG payload', async () => {
+    // Mock canvas renderer verifying background fill and JPEG format
+    let backgroundFilledWith: string | null = null;
+    let targetDimsUsed: { width: number; height: number } | null = null;
+
+    const mockFile = new File(['mock-image-data-oversized'], 'circuit_diagram.png', {
+      type: 'image/png',
+    });
+    // Attach mock width/height and size properties for test adapter
+    Object.assign(mockFile, { width: 3600, height: 2400 });
+    Object.defineProperty(mockFile, 'size', { value: 4_500_000, configurable: true });
+
+    const result = await optimizeImageForDiagnosis(mockFile, {
+      maxDimension: 1800,
+      canvasRenderer: (_src, target, _quality, fillBg) => {
+        backgroundFilledWith = fillBg;
+        targetDimsUsed = target;
+        // Construct a valid base64 JPEG payload (JPEG SOI marker 0xFF, 0xD8, 0xFF)
+        const header = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46]);
+        const dataUrl = `data:image/jpeg;base64,${header.toString('base64')}`;
+        return {
+          dataUrl,
+          mimeType: 'image/jpeg',
+          bytes: header.length,
+        };
+      },
+    });
+
+    assert.strictEqual(backgroundFilledWith, '#FFFFFF', 'Transparent background must be filled with white to prevent black trace inversion');
+    assert.deepStrictEqual(targetDimsUsed, { width: 1800, height: 1200 });
+    assert.strictEqual(result.wasOptimized, true);
+    assert.strictEqual(result.mimeType, 'image/jpeg');
+    assert.ok(result.dataUrl.startsWith('data:image/jpeg;base64,'));
+    assert.strictEqual(result.width, 1800);
+    assert.strictEqual(result.height, 1200);
+    assert.strictEqual(result.originalBytes, 4_500_000);
+  });
+
+  it('skips optimization for already-small images to preserve silkscreen clarity', async () => {
+    const mockSmallFile = new File(['small-uncompressed-data'], 'small_board.jpg', {
+      type: 'image/jpeg',
+    });
+    Object.assign(mockSmallFile, { width: 1200, height: 800 });
+    Object.defineProperty(mockSmallFile, 'size', { value: 250_000, configurable: true });
+
+    const result = await optimizeImageForDiagnosis(mockSmallFile, {
+      maxDimension: 1800,
+      maxUnoptimizedSizeBytes: 1024 * 1024,
+      canvasRenderer: () => {
+        throw new Error('Canvas renderer should not be called for small images');
+      },
+    });
+
+    assert.strictEqual(result.wasOptimized, false);
+    assert.strictEqual(result.width, 1200);
+    assert.strictEqual(result.height, 800);
+    assert.strictEqual(result.bytes, 250_000);
+  });
+
+  it('coordinated timeout alignment: client deadline strictly exceeds backend deadline', () => {
+    const BACKEND_DEFAULT_TIMEOUT_MS = 75_000;
+    assert.strictEqual(DEFAULT_TIMEOUT_MS, 80_000, 'Frontend DEFAULT_TIMEOUT_MS must be exactly 80,000 ms');
+    assert.ok(
+      DEFAULT_TIMEOUT_MS > BACKEND_DEFAULT_TIMEOUT_MS,
+      `Frontend timeout (${DEFAULT_TIMEOUT_MS} ms) must strictly exceed backend timeout (${BACKEND_DEFAULT_TIMEOUT_MS} ms) by at least 5 seconds`
+    );
+    assert.strictEqual(DEFAULT_TIMEOUT_MS - BACKEND_DEFAULT_TIMEOUT_MS, 5000);
+  });
+
+  it('timeout error message in i18n does not hardcode false 50-second duration', () => {
+    assert.ok(
+      !t.timeoutErrorNotice.includes('50'),
+      't.timeoutErrorNotice must not contain misleading hardcoded 50-second string'
+    );
+    assert.ok(
+      t.timeoutErrorNotice.includes('timed out'),
+      't.timeoutErrorNotice accurately communicates timeout state'
+    );
   });
 });

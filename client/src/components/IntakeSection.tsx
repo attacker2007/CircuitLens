@@ -13,9 +13,9 @@ import {
 } from '../utils/intakeValidation';
 import {
   submitCircuitDiagnosis,
-  fileToDataUrl,
   DiagnosisClientError,
 } from '../api/diagnosisClient';
+import { optimizeImageForDiagnosis } from '../utils/imageOptimizer';
 import { DiagnosticResults } from './DiagnosticResults';
 
 interface IntakeSectionProps {
@@ -28,6 +28,7 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
   const [fileState, setFileState] = useState<IntakeFileState | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [optimizedPayloadNotice, setOptimizedPayloadNotice] = useState<string | null>(null);
 
   // Form values
   const [formData, setFormData] = useState<IntakeFormValues>({
@@ -167,6 +168,7 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
 
       // Clear errors
       setFileError(null);
+      setOptimizedPayloadNotice(null);
       setErrors((prev) => ({ ...prev, image: undefined }));
     },
     [t]
@@ -430,12 +432,15 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
     setDiagnosisError(null);
 
     try {
-      const base64DataUrl = await fileToDataUrl(stagedPayload.fileState.file);
+      const optimized = await optimizeImageForDiagnosis(stagedPayload.fileState.file);
+      if (optimized.wasOptimized) {
+        setOptimizedPayloadNotice(`${formatFileSize(optimized.bytes)} payload`);
+      }
       if (controller.signal.aborted) return;
 
       const result = await submitCircuitDiagnosis(
         {
-          image: base64DataUrl,
+          image: optimized.dataUrl,
           boardName: stagedPayload.formData.boardName || undefined,
           expectedBehavior: stagedPayload.formData.expectedBehavior,
           observedBehavior: stagedPayload.formData.observedBehavior,
@@ -496,6 +501,7 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
       }
       setFileState(null);
       setFileError(null);
+      setOptimizedPayloadNotice(null);
       setFormData({
         boardName: '',
         expectedBehavior: '',
@@ -522,7 +528,9 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
             <span className="context-strip-value">{stagedPayload.formData.boardName || t.stagedNotSpecified}</span>
             <span className="context-strip-divider">•</span>
             <span className="context-strip-label">{t.stagedImageLabel}:</span>
-            <span className="context-strip-value tech-value" dir="ltr">{stagedPayload.fileState.name} ({stagedPayload.fileState.sizeFormatted})</span>
+            <span className="context-strip-value tech-value" dir="ltr">
+              {stagedPayload.fileState.name} ({stagedPayload.fileState.sizeFormatted}{optimizedPayloadNotice ? ` • ${optimizedPayloadNotice}` : ''})
+            </span>
           </div>
           <button
             type="button"
@@ -644,7 +652,7 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
               <div className="staged-meta-item">
                 <span className="staged-meta-label">{t.stagedImageLabel}:</span>
                 <span className="staged-meta-value tech-value" dir="ltr">
-                  {stagedPayload.fileState.name} ({stagedPayload.fileState.sizeFormatted})
+                  {stagedPayload.fileState.name} ({stagedPayload.fileState.sizeFormatted}{optimizedPayloadNotice ? ` • ${optimizedPayloadNotice}` : ''})
                 </span>
               </div>
               <div className="staged-meta-item">

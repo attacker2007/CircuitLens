@@ -30,6 +30,10 @@ import {
   BASETEN_API_BASE_URL,
   BASETEN_DEFAULT_MODEL,
   extractMessageContent,
+  resolveRequestTimeoutMs,
+  DEFAULT_REQUEST_TIMEOUT_MS,
+  MIN_REQUEST_TIMEOUT_MS,
+  MAX_REQUEST_TIMEOUT_MS,
   setTestPromptOverrideForTesting,
   setAnalyzerOverrideForTesting,
   setReassessmentAnalyzerOverrideForTesting,
@@ -287,7 +291,7 @@ async function runProviderTests() {
   const { client: basetenClient, config: activeBasetenCfg } = createApiClient();
   assert(activeBasetenCfg.baseUrl === 'https://inference.baseten.co/v1', 'Client baseURL set to Baseten endpoint');
   assert(activeBasetenCfg.model === 'meta-models/muse-spark-open-1026', 'Client model set to meta-models/muse-spark-open-1026');
-  assert(basetenClient.timeout === 45000, 'SDK timeout bounded to 45,000 ms');
+  assert(basetenClient.timeout === 75000, 'SDK timeout defaults to aligned 75,000 ms');
   assert(basetenClient.maxRetries === 0, 'SDK maxRetries strictly set to 0');
 
   // Case 3.2: Client options for Meta (legacy compatibility)
@@ -297,8 +301,52 @@ async function runProviderTests() {
   const { client: metaClient, config: activeMetaCfg } = createApiClient();
   assert(activeMetaCfg.baseUrl === 'https://api.meta.ai/v1', 'Client baseURL set to Meta endpoint');
   assert(activeMetaCfg.model === 'muse-spark-1.3', 'Client model set to muse-spark-1.3');
-  assert(metaClient.timeout === 45000, 'SDK timeout bounded to 45,000 ms');
+  assert(metaClient.timeout === 75000, 'SDK timeout defaults to aligned 75,000 ms');
   assert(metaClient.maxRetries === 0, 'SDK maxRetries strictly set to 0');
+
+  // Case 3.3: MODEL_TIMEOUT_MS resolution and validation
+  restoreEnv();
+  delete process.env.MODEL_TIMEOUT_MS;
+  assert(resolveRequestTimeoutMs() === 75000, 'resolveRequestTimeoutMs defaults to 75000 ms when unset');
+
+  process.env.MODEL_TIMEOUT_MS = '  ';
+  assert(resolveRequestTimeoutMs() === 75000, 'resolveRequestTimeoutMs defaults to 75000 ms when whitespace');
+
+  process.env.MODEL_TIMEOUT_MS = '90000';
+  assert(resolveRequestTimeoutMs() === 90000, 'Valid MODEL_TIMEOUT_MS (90000) overrides default');
+
+  process.env.MODEL_TIMEOUT_MS = '5000';
+  assert(resolveRequestTimeoutMs() === 5000, 'Minimum boundary MODEL_TIMEOUT_MS (5000) accepted');
+
+  process.env.MODEL_TIMEOUT_MS = '300000';
+  assert(resolveRequestTimeoutMs() === 300000, 'Maximum boundary MODEL_TIMEOUT_MS (300000) accepted');
+
+  // Case 3.4: Rejection of invalid MODEL_TIMEOUT_MS values
+  const invalidTimeouts = [
+    { val: 'abc', reason: 'non-numeric string' },
+    { val: '0', reason: 'zero timeout' },
+    { val: '-5000', reason: 'negative timeout' },
+    { val: '4999', reason: 'below minimum 5000 ms' },
+    { val: '300001', reason: 'above maximum 300000 ms' },
+    { val: '75000.5', reason: 'non-integer float' },
+    { val: 'NaN', reason: 'NaN string' },
+    { val: 'Infinity', reason: 'Infinity string' },
+  ];
+
+  for (const { val, reason } of invalidTimeouts) {
+    process.env.MODEL_TIMEOUT_MS = val;
+    let thrownError: Error | null = null;
+    try {
+      resolveRequestTimeoutMs();
+    } catch (err) {
+      thrownError = err as Error;
+    }
+    assert(
+      thrownError instanceof ConfigurationError,
+      `Rejects invalid MODEL_TIMEOUT_MS="${val}" (${reason}) with ConfigurationError`
+    );
+  }
+  restoreEnv();
 
   // -------------------------------------------------------------------------
   // SECTION 4: Pipeline Preservation (Diagnosis & Reassessment with Baseten)

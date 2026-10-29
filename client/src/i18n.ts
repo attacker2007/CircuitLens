@@ -328,7 +328,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
     missingApiKeyErrorNotice: 'Meta Model API key is not configured on the server. Please add your MODEL_API_KEY to the server .env configuration.',
     networkErrorNotice: 'Unable to reach the backend diagnostic service. Please verify that the backend server is running on port 4000.',
     rateLimitErrorNotice: 'Meta Model API rate limit reached. Please wait a moment before trying again.',
-    timeoutErrorNotice: 'Diagnostic request timed out after 50 seconds. The model or network took too long to complete visual inference.',
+    timeoutErrorNotice: 'Diagnostic request timed out. The model or network took too long to complete visual inference.',
     genericErrorNotice: 'An unexpected error occurred during diagnostic processing. Your entered symptoms and image have been preserved.',
 
     resultsSectionTitle: 'AI Circuit Diagnostic Report',
@@ -546,7 +546,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
     missingApiKeyErrorNotice: 'La clave de Meta Model API no está configurada en el servidor. Agregue MODEL_API_KEY al archivo .env del servidor.',
     networkErrorNotice: 'No se pudo conectar con el servicio backend de diagnóstico. Verifique que el servidor esté activo en el puerto 4000.',
     rateLimitErrorNotice: 'Límite de peticiones de Meta Model API alcanzado. Espere unos momentos antes de reintentar.',
-    timeoutErrorNotice: 'La solicitud de diagnóstico excedió el tiempo límite (50 s). El modelo tardó demasiado en completar la inferencia visual.',
+    timeoutErrorNotice: 'La solicitud de diagnóstico excedió el tiempo límite. El modelo tardó demasiado en completar la inferencia visual.',
     genericErrorNotice: 'Ocurrió un error inesperado durante el diagnóstico. Sus síntomas ingresados y la imagen se han preservado.',
 
     resultsSectionTitle: 'Informe Diagnóstico de Circuitos con IA',
@@ -764,7 +764,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
     missingApiKeyErrorNotice: 'مفتاح Meta Model API غير مهيأ في الخادم. يُرجى إضافة MODEL_API_KEY إلى ملف .env في الخادم.',
     networkErrorNotice: 'تعذر الاتصال بخدمة التشخيص الخلفية. يُرجى التأكد من تشغيل خادم Node.js على المنفذ 4000.',
     rateLimitErrorNotice: 'تم بلوغ الحد الأقصى لمعدل الطلبات في Meta Model API. يُرجى الانتظار قليلاً ثم المحاولة مجدداً.',
-    timeoutErrorNotice: 'انتهت مهلة طلب التشخيص (50 ثانية). استغرق النموذج وقتاً طويلاً لإتمام المعالجة البصرية.',
+    timeoutErrorNotice: 'انتهت مهلة طلب التشخيص. استغرق النموذج وقتاً طويلاً لإتمام المعالجة البصرية.',
     genericErrorNotice: 'حدث خطأ غير متوقع أثناء معالجة التشخيص. تم حفظ بيانات الأعراض والصورة المدخلة بأمان.',
 
     resultsSectionTitle: 'تقرير تشخيص الدائرة بالذكاء الاصطناعي',

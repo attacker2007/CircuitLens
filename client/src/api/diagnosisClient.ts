@@ -18,7 +18,7 @@ import type {
   RevisedHypothesisStatus,
 } from '../types/diagnosis';
 
-const DEFAULT_TIMEOUT_MS = 50_000;
+export const DEFAULT_TIMEOUT_MS = 80_000;
 
 export class DiagnosisClientError extends Error {
   readonly errorType: string;
@@ -45,24 +45,31 @@ export class DiagnosisClientError extends Error {
  * Encodes a local File object into a standard base64 data URL.
  * Does NOT persist to localStorage or generate blob URLs.
  */
-export function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
+export async function fileToDataUrl(file: File): Promise<string> {
+  if (typeof FileReader !== 'undefined') {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
 
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        resolve(reader.result);
-      } else {
-        reject(new DiagnosisClientError('Failed to encode image to base64 data URL.', 'ENCODING_ERROR', 400));
-      }
-    };
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new DiagnosisClientError('Failed to encode image to base64 data URL.', 'ENCODING_ERROR', 400));
+        }
+      };
 
-    reader.onerror = () => {
-      reject(new DiagnosisClientError('Browser failed to read image file.', 'FILE_READ_ERROR', 400));
-    };
+      reader.onerror = () => {
+        reject(new DiagnosisClientError('Browser failed to read image file.', 'FILE_READ_ERROR', 400));
+      };
 
-    reader.readAsDataURL(file);
-  });
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Fallback for Node.js / headless test environments
+  const buf = Buffer.from(await file.arrayBuffer());
+  const mime = file.type || 'image/jpeg';
+  return `data:${mime};base64,${buf.toString('base64')}`;
 }
 
 function isPlainObject(val: unknown): val is Record<string, unknown> {
@@ -162,10 +169,10 @@ export async function submitCircuitDiagnosis(
     signal.addEventListener('abort', onCallerAbort, { once: true });
   }
 
-  // Enforce 50-second timeout by default
+  // Enforce 80-second timeout by default
   const timeoutId = setTimeout(() => {
     timedOut = true;
-    controller.abort(new DOMException('Diagnostic request timed out after 50 seconds.', 'TimeoutError'));
+    controller.abort(new DOMException('Diagnostic request timed out.', 'TimeoutError'));
   }, DEFAULT_TIMEOUT_MS);
 
   let response: Response;
@@ -183,7 +190,7 @@ export async function submitCircuitDiagnosis(
   } catch (err: unknown) {
     if (timedOut || (signal?.reason instanceof DOMException && signal.reason.name === 'TimeoutError')) {
       throw new DiagnosisClientError(
-        'Diagnostic request timed out after 50 seconds. The server may still be processing.',
+        'Diagnostic request timed out. The server may still be processing.',
         'TIMEOUT',
         504
       );
@@ -200,7 +207,7 @@ export async function submitCircuitDiagnosis(
     if (err instanceof DOMException && (err.name === 'AbortError' || err.name === 'TimeoutError')) {
       if (controller.signal.reason instanceof DOMException && controller.signal.reason.name === 'TimeoutError') {
         throw new DiagnosisClientError(
-          'Diagnostic request timed out after 50 seconds. The server may still be processing.',
+          'Diagnostic request timed out. The server may still be processing.',
           'TIMEOUT',
           504
         );
@@ -337,7 +344,7 @@ export async function submitCircuitReassessment(
 
   const timeoutId = setTimeout(() => {
     timedOut = true;
-    controller.abort(new DOMException('Reassessment request timed out after 50 seconds.', 'TimeoutError'));
+    controller.abort(new DOMException('Reassessment request timed out.', 'TimeoutError'));
   }, DEFAULT_TIMEOUT_MS);
 
   let response: Response;
@@ -355,7 +362,7 @@ export async function submitCircuitReassessment(
   } catch (err: unknown) {
     if (timedOut || (signal?.reason instanceof DOMException && signal.reason.name === 'TimeoutError')) {
       throw new DiagnosisClientError(
-        'Reassessment request timed out after 50 seconds. The server may still be processing.',
+        'Reassessment request timed out. The server may still be processing.',
         'TIMEOUT',
         504
       );
@@ -372,7 +379,7 @@ export async function submitCircuitReassessment(
     if (err instanceof DOMException && (err.name === 'AbortError' || err.name === 'TimeoutError')) {
       if (controller.signal.reason instanceof DOMException && controller.signal.reason.name === 'TimeoutError') {
         throw new DiagnosisClientError(
-          'Reassessment request timed out after 50 seconds. The server may still be processing.',
+          'Reassessment request timed out. The server may still be processing.',
           'TIMEOUT',
           504
         );

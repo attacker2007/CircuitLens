@@ -22,7 +22,30 @@ export const META_API_BASE_URL = 'https://api.meta.ai/v1';
 export const DEFAULT_MODEL = 'muse-spark-1.3';
 export const BASETEN_API_BASE_URL = 'https://inference.baseten.co/v1';
 export const BASETEN_DEFAULT_MODEL = 'meta-models/muse-spark-open-1026';
-export const REQUEST_TIMEOUT_MS = 45000;
+export const DEFAULT_REQUEST_TIMEOUT_MS = 75000;
+export const MIN_REQUEST_TIMEOUT_MS = 5000;
+export const MAX_REQUEST_TIMEOUT_MS = 300000;
+
+/**
+ * Resolves the model request timeout in milliseconds from MODEL_TIMEOUT_MS or returns default (75,000 ms).
+ * Validates that the timeout is an integer between 5,000 ms and 300,000 ms.
+ * Throws ConfigurationError if MODEL_TIMEOUT_MS is non-numeric, zero, negative, or out-of-bounds.
+ */
+export function resolveRequestTimeoutMs(): number {
+  const envVal = process.env.MODEL_TIMEOUT_MS;
+  if (!envVal || envVal.trim() === '') {
+    return DEFAULT_REQUEST_TIMEOUT_MS;
+  }
+  const parsed = Number(envVal.trim());
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < MIN_REQUEST_TIMEOUT_MS || parsed > MAX_REQUEST_TIMEOUT_MS) {
+    throw new ConfigurationError(
+      `Invalid MODEL_TIMEOUT_MS: "${envVal}". Timeout must be an integer between ${MIN_REQUEST_TIMEOUT_MS} and ${MAX_REQUEST_TIMEOUT_MS} milliseconds.`
+    );
+  }
+  return parsed;
+}
+
+export const REQUEST_TIMEOUT_MS = DEFAULT_REQUEST_TIMEOUT_MS;
 
 export type ModelProvider = 'meta' | 'baseten';
 
@@ -121,6 +144,7 @@ export interface TestPromptOptions {
   prompt?: string;
   model?: string;
   maxTokens?: number;
+  timeout?: number;
 }
 
 export interface TestPromptResponse {
@@ -146,11 +170,12 @@ export function createApiClient(options?: {
 }): { client: OpenAI; config: ProviderConfig } {
   const config = resolveProviderConfig();
   const apiKey = getProviderApiKey(config);
+  const timeout = options?.timeout ?? resolveRequestTimeoutMs();
 
   const client = new OpenAI({
     apiKey,
     baseURL: config.baseUrl,
-    timeout: options?.timeout ?? REQUEST_TIMEOUT_MS,
+    timeout,
     maxRetries: options?.maxRetries ?? 0,
   });
 
@@ -302,7 +327,7 @@ export async function sendMetaTestPrompt(options?: TestPromptOptions): Promise<T
       temperature: 0.2,
     },
     {
-      timeout: REQUEST_TIMEOUT_MS,
+      timeout: options?.timeout ?? resolveRequestTimeoutMs(),
       maxRetries: 0,
     }
   );
@@ -477,7 +502,7 @@ export async function analyzeCircuitImage(
       response_format: { type: 'json_object' },
     },
     {
-      timeout: REQUEST_TIMEOUT_MS,
+      timeout: resolveRequestTimeoutMs(),
       maxRetries: 0,
       signal: options?.signal,
     }
@@ -689,7 +714,7 @@ export async function reassessCircuitEvidence(
       response_format: { type: 'json_object' },
     },
     {
-      timeout: REQUEST_TIMEOUT_MS,
+      timeout: resolveRequestTimeoutMs(),
       maxRetries: 0,
       signal: options?.signal,
     }
@@ -779,10 +804,16 @@ export function handleApiError(error: unknown): NormalizedApiError {
   }
 
   if (error instanceof OpenAI.APIConnectionTimeoutError) {
+    let timeoutSec = Math.round(DEFAULT_REQUEST_TIMEOUT_MS / 1000);
+    try {
+      timeoutSec = Math.round(resolveRequestTimeoutMs() / 1000);
+    } catch {
+      // Fallback to default if MODEL_TIMEOUT_MS is unparseable
+    }
     return {
       statusCode: 504,
       errorType: 'GATEWAY_TIMEOUT',
-      message: `Request to model API timed out after ${Math.round(REQUEST_TIMEOUT_MS / 1000)} seconds.`,
+      message: `Request to model API timed out after ${timeoutSec} seconds.`,
     };
   }
 
