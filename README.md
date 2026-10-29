@@ -38,7 +38,7 @@ Modern multimodal AI models can identify visual defects, but naive chat implemen
 +-----------------------------------------------------------------------------------+
 |                     MODEL PROVIDER (CONFIGURABLE VIA .ENV)                        |
 |  - Meta Model API (default): https://api.meta.ai/v1      (Model: muse-spark-1.3)  |
-|  - Baseten:                  https://inference.baseten.co/v1 (muse-spark-open)   |
+|  - Baseten:                  https://inference.baseten.co/v1 (muse-spark-open-1026) |
 +-----------------------------------------------------------------------------------+
        |                                                               |
        | Raw JSON Completion                                           | Raw JSON Completion
@@ -219,7 +219,7 @@ interface DiagnosisReassessmentResponse {
 
    # Optional custom overrides:
    # MODEL_BASE_URL=https://inference.baseten.co/v1
-   # MODEL_NAME=meta-models/muse-spark-open
+   # MODEL_NAME=meta-models/muse-spark-open-1026
 
    # Backend server listening port (default: 4000)
    PORT=4000

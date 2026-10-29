@@ -158,6 +158,7 @@ async function runProviderTests() {
   assert(basetenCfg.provider === 'baseten', 'MODEL_PROVIDER=BASETEN (case-insensitive) resolves to "baseten"');
   assert(basetenCfg.baseUrl === BASETEN_API_BASE_URL, `Baseten base URL matches ${BASETEN_API_BASE_URL}`);
   assert(basetenCfg.model === BASETEN_DEFAULT_MODEL, `Baseten model matches ${BASETEN_DEFAULT_MODEL}`);
+  assert(basetenCfg.model === 'meta-models/muse-spark-open-1026', 'Baseten default model resolves to "meta-models/muse-spark-open-1026"');
   assert(basetenCfg.apiKeyEnvVar === 'BASETEN_API_KEY', 'Baseten key variable is "BASETEN_API_KEY"');
 
   // Case 1.5: Unsupported provider identifier throws ConfigurationError
@@ -278,7 +279,7 @@ async function runProviderTests() {
   process.env.BASETEN_API_KEY = 'mock-baseten-key-123';
   const { client: basetenClient, config: activeBasetenCfg } = createApiClient();
   assert(activeBasetenCfg.baseUrl === 'https://inference.baseten.co/v1', 'Client baseURL set to Baseten endpoint');
-  assert(activeBasetenCfg.model === 'meta-models/muse-spark-open', 'Client model set to meta-models/muse-spark-open');
+  assert(activeBasetenCfg.model === 'meta-models/muse-spark-open-1026', 'Client model set to meta-models/muse-spark-open-1026');
   assert(basetenClient.timeout === 45000, 'SDK timeout bounded to 45,000 ms');
   assert(basetenClient.maxRetries === 0, 'SDK maxRetries strictly set to 0');
 

@@ -21,7 +21,7 @@ import {
 export const META_API_BASE_URL = 'https://api.meta.ai/v1';
 export const DEFAULT_MODEL = 'muse-spark-1.3';
 export const BASETEN_API_BASE_URL = 'https://inference.baseten.co/v1';
-export const BASETEN_DEFAULT_MODEL = 'meta-models/muse-spark-open';
+export const BASETEN_DEFAULT_MODEL = 'meta-models/muse-spark-open-1026';
 export const REQUEST_TIMEOUT_MS = 45000;
 
 export type ModelProvider = 'meta' | 'baseten';

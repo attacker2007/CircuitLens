@@ -103,10 +103,19 @@ async function runEndpointTests() {
     // Test 2: GET /api/test-meta (missing key handling)
     // -----------------------------------------------------------------------
     console.log('\n[Test 2] Meta test endpoint with missing key (GET /api/test-meta)');
-    const metaTestRes = await fetch(`${baseUrl}/api/test-meta`);
-    const metaTestJson = (await metaTestRes.json()) as Record<string, unknown>;
-    assert(metaTestRes.status === 500, 'GET /api/test-meta returns HTTP 500 when key missing');
-    assert(metaTestJson.errorType === 'MISSING_API_KEY', 'Error type is MISSING_API_KEY');
+    const savedModelKey = process.env.MODEL_API_KEY;
+    const savedBasetenKey = process.env.BASETEN_API_KEY;
+    delete process.env.MODEL_API_KEY;
+    delete process.env.BASETEN_API_KEY;
+    try {
+      const metaTestRes = await fetch(`${baseUrl}/api/test-meta`);
+      const metaTestJson = (await metaTestRes.json()) as Record<string, unknown>;
+      assert(metaTestRes.status === 500, 'GET /api/test-meta returns HTTP 500 when key missing');
+      assert(metaTestJson.errorType === 'MISSING_API_KEY', 'Error type is MISSING_API_KEY');
+    } finally {
+      if (savedModelKey !== undefined) process.env.MODEL_API_KEY = savedModelKey;
+      if (savedBasetenKey !== undefined) process.env.BASETEN_API_KEY = savedBasetenKey;
+    }
 
     // -----------------------------------------------------------------------
     // Test 3: POST /api/diagnose - Valid request with mock analyzer (HTTP 200)
