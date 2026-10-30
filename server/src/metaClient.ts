@@ -196,6 +196,18 @@ export class ModelRefusalError extends Error {
   }
 }
 
+export class DiagnosisOutputLimitError extends Error {
+  readonly completionTokens?: number;
+  readonly maxTokens?: number;
+
+  constructor(message: string, completionTokens?: number, maxTokens?: number) {
+    super(message);
+    this.name = 'DiagnosisOutputLimitError';
+    this.completionTokens = completionTokens;
+    this.maxTokens = maxTokens;
+  }
+}
+
 export interface ContentExtractionOptions {
   /**
    * Whether to fall back to reasoning_content or reasoning when message.content is empty.
@@ -379,12 +391,16 @@ export const DIAGNOSTIC_SYSTEM_PROMPT = `You are CircuitLens, an expert AI elect
 CRITICAL ELECTRICAL SAFETY & DIAGNOSTIC RULES:
 1. SAFETY FIRST: Never advise touching energized circuitry, probing hazardous or mains voltages, or undertaking high-risk procedures without explicit precautions, personal protective equipment (PPE), and isolation.
 2. UNPOWERED CHECKS FIRST: Prioritize non-destructive, unpowered tests (visual inspection under magnification, cold resistance, diode checks, continuity) before suggesting any powered in-circuit measurements.
-3. SEPARATE OBSERVATIONS FROM HYPOTHESES:
+3. CONCISE & ACTIONABLE REPORTING:
+   - Provide a focused diagnostic assessment with at most 3 primary fault hypotheses (the most plausible failure mechanisms).
+   - Provide at most 3 prioritized troubleshooting checks, starting with unpowered tests first.
+   - Keep observations, hypotheses, and check procedures concise, evidence-grounded, and free of redundant or speculative prose.
+4. SEPARATE OBSERVATIONS FROM HYPOTHESES:
    - "visibleObservations": List only factual, physical, optical findings directly visible in the photograph (e.g., component markings, solder bridging, flux residue, burnt substrate, cracked package, lifted trace).
    - "hypotheses": Formulate deductive potential root causes explaining the observed symptoms and visual cues. Never present a suspected fault as confirmed without adequate proof.
-4. HONEST UNCERTAINTY & LIMITATIONS: Never invent component part numbers, pinouts, test point voltages, or nets that cannot be clearly verified. Explicitly declare when the image is blurry, angled, occluded, or insufficient to reach conclusions.
-5. QUALITATIVE CONFIDENCE: Assign qualitative confidence ("low", "medium", or "high") based on the strength of visual/reported evidence. Do NOT describe confidence as a calibrated mathematical probability.
-6. STRICT JSON OUTPUT: Return ONLY a single valid JSON object strictly complying with the schema below. Do not wrap with markdown code fences (no \`\`\`json) and do not provide explanatory prose outside the JSON object.
+5. HONEST UNCERTAINTY & LIMITATIONS: Never invent component part numbers, pinouts, test point voltages, or nets that cannot be clearly verified. Explicitly declare when the image is blurry, angled, occluded, or insufficient to reach conclusions.
+6. QUALITATIVE CONFIDENCE: Assign qualitative confidence ("low", "medium", or "high") based on the strength of visual/reported evidence. Do NOT describe confidence as a calibrated mathematical probability.
+7. STRICT JSON OUTPUT: Return ONLY a single valid JSON object strictly complying with the schema below. Do not wrap with markdown code fences (no \`\`\`json) and do not provide explanatory prose outside the JSON object.
 
 REQUIRED JSON STRUCTURE:
 {
@@ -444,7 +460,11 @@ function buildDiagnosticUserPrompt(request: DiagnosisRequest): string {
     lines.push(`Additional Technician Notes: ${request.additionalNotes.trim()}`);
   }
 
-  lines.push('', 'Provide your complete diagnostic assessment as a single valid JSON object strictly matching the requested schema.');
+  lines.push(
+    '',
+    'Keep your response concise: provide at most 3 high-plausibility fault hypotheses and at most 3 prioritized troubleshooting checks (unpowered checks first).',
+    'Provide your complete diagnostic assessment as a single valid JSON object strictly matching the requested schema.'
+  );
   return lines.join('\n');
 }
 
@@ -457,6 +477,14 @@ export function setAnalyzerOverrideForTesting(
   override: ((request: DiagnosisRequest, options?: { signal?: AbortSignal }) => Promise<DiagnosisResponse>) | null
 ): void {
   analyzerOverride = override;
+}
+
+let chatCompletionOverride: ((params: unknown) => Promise<unknown>) | null = null;
+
+export function setChatCompletionOverrideForTesting(
+  override: ((params: unknown) => Promise<unknown>) | null
+): void {
+  chatCompletionOverride = override;
 }
 
 /**
@@ -472,44 +500,103 @@ export async function analyzeCircuitImage(
   }
 
   const { client, config } = createApiClient();
+  const startTime = Date.now();
 
-  const completion = await client.chat.completions.create(
-    {
-      model: config.model,
-      messages: [
+  const completion = chatCompletionOverride
+    ? ((await chatCompletionOverride({
+        model: config.model,
+        messages: [
+          {
+            role: 'system',
+            content: DIAGNOSTIC_SYSTEM_PROMPT,
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: buildDiagnosticUserPrompt(request),
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: request.image,
+                },
+              },
+            ],
+          },
+        ],
+        max_tokens: 3500,
+        temperature: 0.2,
+        response_format: { type: 'json_object' },
+      })) as OpenAI.ChatCompletion)
+    : await client.chat.completions.create(
         {
-          role: 'system',
-          content: DIAGNOSTIC_SYSTEM_PROMPT,
-        },
-        {
-          role: 'user',
-          content: [
+          model: config.model,
+          messages: [
             {
-              type: 'text',
-              text: buildDiagnosticUserPrompt(request),
+              role: 'system',
+              content: DIAGNOSTIC_SYSTEM_PROMPT,
             },
             {
-              type: 'image_url',
-              image_url: {
-                url: request.image,
-              },
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: buildDiagnosticUserPrompt(request),
+                },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: request.image,
+                  },
+                },
+              ],
             },
           ],
+          max_tokens: 3500,
+          temperature: 0.2,
+          response_format: { type: 'json_object' },
         },
-      ],
-      max_tokens: 3500,
-      temperature: 0.2,
-      response_format: { type: 'json_object' },
-    },
-    {
-      timeout: resolveRequestTimeoutMs(),
-      maxRetries: 0,
-      signal: options?.signal,
-    }
+        {
+          timeout: resolveRequestTimeoutMs(),
+          maxRetries: 0,
+          signal: options?.signal,
+        }
+      );
+
+  const durationMs = Date.now() - startTime;
+  const choice = completion.choices?.[0];
+  const finishReason = choice?.finish_reason;
+  const promptTokens = completion.usage?.prompt_tokens;
+  const completionTokens = completion.usage?.completion_tokens;
+  const totalTokens = completion.usage?.total_tokens;
+
+  // Safe non-sensitive diagnostic logging (numeric/status values only, no tokens/secrets/images)
+  console.log(
+    `[Diagnosis Completion] finish_reason: "${finishReason ?? 'none'}", duration: ${durationMs}ms, tokens: prompt=${promptTokens ?? 'n/a'}, completion=${completionTokens ?? 'n/a'}, total=${totalTokens ?? 'n/a'}`
   );
 
-  const rawContent = extractMessageContent(completion.choices?.[0]);
-  return parseDiagnosisJson(rawContent);
+  if (finishReason === 'length') {
+    throw new DiagnosisOutputLimitError(
+      `Model output reached the maximum completion token limit (${completionTokens ?? 3500} tokens) before completing the diagnostic assessment.`,
+      completionTokens,
+      3500
+    );
+  }
+
+  const rawContent = extractMessageContent(choice);
+  const diagnosis = parseDiagnosisJson(rawContent);
+
+  diagnosis.metadata = {
+    promptTokens,
+    completionTokens,
+    totalTokens,
+    finishReason: finishReason ?? undefined,
+    durationMs,
+  };
+
+  return diagnosis;
 }
 
 /**
@@ -541,7 +628,10 @@ CRITICAL ELECTRICAL SAFETY & REASSESSMENT RULES:
    - Prioritize unpowered cold resistance, diode, and continuity checks before any energized measurements.
 6. HONEST UNCERTAINTY:
    - If test evidence is ambiguous or contradictory, explicitly declare the uncertainty in "evidenceSynthesis" and mark affected hypotheses as "unresolved".
-7. STRICT JSON OUTPUT:
+7. CONCISE & ACTIONABLE REPORTING:
+   - Provide at most 3 next recommended checks in "nextRecommendedChecks", strictly prioritized from unpowered to powered tests.
+   - Keep evidence synthesis, explanations of change, and procedures concise, actionable, and free of redundant prose.
+8. STRICT JSON OUTPUT:
    - Return ONLY a single valid JSON object strictly complying with the schema below.
    - Do NOT wrap with markdown code fences (no \`\`\`json).
    - Do NOT output any conversational text outside the JSON object.
@@ -665,7 +755,8 @@ export function buildReassessmentUserPrompt(request: DiagnosisReassessmentReques
     '3. For each revised hypothesis, select status ONLY from: supported, weakened, unresolved, contradicted.',
     '4. In "citingEvidenceIds", cite ONLY valid Evidence IDs from Section 3 above.',
     '5. In "safetyWarnings", include at least one essential electrical safety precaution for next steps.',
-    '6. Return your reassessment as a single valid JSON object strictly complying with the schema.'
+    '6. Keep your response concise: provide at most 3 prioritized next recommended checks (unpowered checks first).',
+    '7. Return your reassessment as a single valid JSON object strictly complying with the schema.'
   );
 
   return lines.join('\n');
@@ -695,34 +786,82 @@ export async function reassessCircuitEvidence(
   }
 
   const { client, config } = createApiClient();
+  const startTime = Date.now();
 
-  const completion = await client.chat.completions.create(
-    {
-      model: config.model,
-      messages: [
+  const completion = chatCompletionOverride
+    ? ((await chatCompletionOverride({
+        model: config.model,
+        messages: [
+          {
+            role: 'system',
+            content: REASSESSMENT_SYSTEM_PROMPT,
+          },
+          {
+            role: 'user',
+            content: buildReassessmentUserPrompt(request),
+          },
+        ],
+        max_tokens: 3500,
+        temperature: 0.2,
+        response_format: { type: 'json_object' },
+      })) as OpenAI.ChatCompletion)
+    : await client.chat.completions.create(
         {
-          role: 'system',
-          content: REASSESSMENT_SYSTEM_PROMPT,
+          model: config.model,
+          messages: [
+            {
+              role: 'system',
+              content: REASSESSMENT_SYSTEM_PROMPT,
+            },
+            {
+              role: 'user',
+              content: buildReassessmentUserPrompt(request),
+            },
+          ],
+          max_tokens: 3500,
+          temperature: 0.2,
+          response_format: { type: 'json_object' },
         },
         {
-          role: 'user',
-          content: buildReassessmentUserPrompt(request),
-        },
-      ],
-      max_tokens: 3500,
-      temperature: 0.2,
-      response_format: { type: 'json_object' },
-    },
-    {
-      timeout: resolveRequestTimeoutMs(),
-      maxRetries: 0,
-      signal: options?.signal,
-    }
+          timeout: resolveRequestTimeoutMs(),
+          maxRetries: 0,
+          signal: options?.signal,
+        }
+      );
+
+  const durationMs = Date.now() - startTime;
+  const choice = completion.choices?.[0];
+  const finishReason = choice?.finish_reason;
+  const promptTokens = completion.usage?.prompt_tokens;
+  const completionTokens = completion.usage?.completion_tokens;
+  const totalTokens = completion.usage?.total_tokens;
+
+  // Safe non-sensitive diagnostic logging (numeric/status values only, no tokens/secrets/images)
+  console.log(
+    `[Reassessment Completion] finish_reason: "${finishReason ?? 'none'}", duration: ${durationMs}ms, tokens: prompt=${promptTokens ?? 'n/a'}, completion=${completionTokens ?? 'n/a'}, total=${totalTokens ?? 'n/a'}`
   );
 
-  const rawContent = extractMessageContent(completion.choices?.[0]);
+  if (finishReason === 'length') {
+    throw new DiagnosisOutputLimitError(
+      `Model output reached the maximum completion token limit (${completionTokens ?? 3500} tokens) before completing the reassessment.`,
+      completionTokens,
+      3500
+    );
+  }
+
+  const rawContent = extractMessageContent(choice);
   const submittedEvidenceIds = new Set(request.evidence.map((e) => e.id));
-  return parseReassessmentJson(rawContent, submittedEvidenceIds);
+  const reassessment = parseReassessmentJson(rawContent, submittedEvidenceIds);
+
+  reassessment.metadata = {
+    promptTokens,
+    completionTokens,
+    totalTokens,
+    finishReason: finishReason ?? undefined,
+    durationMs,
+  };
+
+  return reassessment;
 }
 
 export interface NormalizedApiError {
@@ -766,6 +905,14 @@ export function handleApiError(error: unknown): NormalizedApiError {
     return {
       statusCode: 400,
       errorType: 'INVALID_REQUEST',
+      message: error.message,
+    };
+  }
+
+  if (error instanceof DiagnosisOutputLimitError) {
+    return {
+      statusCode: 502,
+      errorType: 'OUTPUT_TOKEN_LIMIT',
       message: error.message,
     };
   }

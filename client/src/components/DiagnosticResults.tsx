@@ -188,9 +188,19 @@ export function DiagnosticResults({
         if (err.errorType === 'CANCELLED' || err.statusCode === 499) {
           return;
         }
+        let userMessage = err.message;
+        if (err.errorType === 'OUTPUT_TOKEN_LIMIT') {
+          userMessage = t.outputLimitErrorNotice;
+        } else if (err.errorType === 'INVALID_MODEL_OUTPUT') {
+          userMessage = t.invalidOutputErrorNotice;
+        } else if (err.errorType === 'SCHEMA_VALIDATION_ERROR') {
+          userMessage = t.schemaValidationErrorNotice;
+        } else if (err.errorType === 'MODEL_REFUSAL') {
+          userMessage = t.modelRefusalErrorNotice;
+        }
         setReassessmentError({
           title: t.reassessErrorTitle,
-          message: err.message,
+          message: userMessage,
           isRetryable: err.isRetryable,
         });
       } else {

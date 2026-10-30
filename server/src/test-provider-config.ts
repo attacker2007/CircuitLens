@@ -25,6 +25,10 @@ import {
   DiagnosisParsingError,
   ReassessmentParsingError,
   ModelRefusalError,
+  DiagnosisOutputLimitError,
+  DIAGNOSTIC_SYSTEM_PROMPT,
+  REASSESSMENT_SYSTEM_PROMPT,
+  setChatCompletionOverrideForTesting,
   META_API_BASE_URL,
   DEFAULT_MODEL,
   BASETEN_API_BASE_URL,
@@ -719,6 +723,249 @@ ${JSON.stringify(MOCK_REASSESSMENT)}`;
       assert(err instanceof ReassessmentParsingError, 'Whitespace string in parseReassessmentJson throws ReassessmentParsingError');
     }
     assert(reassessEmptyThrew, 'Whitespace string rejected by parseReassessmentJson');
+
+    // -------------------------------------------------------------------------
+    // SECTION 8: Stage 5C-3G Completion Metadata, Token Limits & Prompt Conciseness
+    // -------------------------------------------------------------------------
+    console.log('\n--- SECTION 8: Completion Metadata, Token Limits & Conciseness ---');
+    restoreEnv();
+    process.env.MODEL_PROVIDER = 'baseten';
+    process.env.BASETEN_API_KEY = 'test-baseten-key';
+
+    // Case 8.1: DiagnosisOutputLimitError structure and handleApiError mapping
+    const outputLimitErr = new DiagnosisOutputLimitError(
+      'Model output reached the maximum completion token limit (3500 tokens) before completing the diagnostic assessment.',
+      3500,
+      3500
+    );
+    assert(outputLimitErr.name === 'DiagnosisOutputLimitError', 'DiagnosisOutputLimitError has correct name');
+    assert(outputLimitErr.completionTokens === 3500, 'Preserves completionTokens');
+    assert(outputLimitErr.maxTokens === 3500, 'Preserves maxTokens');
+
+    const mappedLimitErr = handleApiError(outputLimitErr);
+    assert(mappedLimitErr.statusCode === 502, 'Output limit error maps to HTTP 502');
+    assert(mappedLimitErr.errorType === 'OUTPUT_TOKEN_LIMIT', 'Error type is OUTPUT_TOKEN_LIMIT');
+    assert(mappedLimitErr.message.includes('3500 tokens'), 'Message describes token exhaustion');
+
+    // Case 8.2: finish_reason === "length" in analyzeCircuitImage throws DiagnosisOutputLimitError
+    setChatCompletionOverrideForTesting(async () => ({
+      id: 'chatcmpl-test-length',
+      object: 'chat.completion',
+      created: Date.now(),
+      model: 'meta-models/muse-spark-open-1026',
+      choices: [
+        {
+          index: 0,
+          finish_reason: 'length',
+          message: {
+            role: 'assistant',
+            content: '{"summary": "Incomplete diagnostic report that got cut off mid-way...',
+          },
+        },
+      ],
+      usage: {
+        prompt_tokens: 1250,
+        completion_tokens: 3500,
+        total_tokens: 4750,
+      },
+    } as any));
+
+    let lengthThrew = false;
+    try {
+      await analyzeCircuitImage({
+        image: VALID_JPEG_DATA_URL,
+        expectedBehavior: 'Powers on normally',
+        observedBehavior: 'Dead board',
+      });
+    } catch (err) {
+      lengthThrew = true;
+      assert(err instanceof DiagnosisOutputLimitError, 'analyzeCircuitImage throws DiagnosisOutputLimitError when finish_reason === "length"');
+      assert((err as DiagnosisOutputLimitError).completionTokens === 3500, 'Token count recorded in error');
+    }
+    assert(lengthThrew, 'finish_reason="length" caught before JSON parsing');
+
+    // Case 8.3: finish_reason === "length" in reassessCircuitEvidence throws DiagnosisOutputLimitError
+    let reassessLengthThrew = false;
+    try {
+      await reassessCircuitEvidence(reassessmentPayload);
+    } catch (err) {
+      reassessLengthThrew = true;
+      assert(err instanceof DiagnosisOutputLimitError, 'reassessCircuitEvidence throws DiagnosisOutputLimitError when finish_reason === "length"');
+    }
+    assert(reassessLengthThrew, 'Reassessment finish_reason="length" correctly caught');
+
+    // Case 8.4: finish_reason === "stop" with malformed JSON produces INVALID_MODEL_OUTPUT, not token exhaustion
+    setChatCompletionOverrideForTesting(async () => ({
+      id: 'chatcmpl-test-malformed',
+      object: 'chat.completion',
+      created: Date.now(),
+      model: 'meta-models/muse-spark-open-1026',
+      choices: [
+        {
+          index: 0,
+          finish_reason: 'stop',
+          message: {
+            role: 'assistant',
+            content: 'Not a valid JSON at all!',
+          },
+        },
+      ],
+      usage: {
+        prompt_tokens: 800,
+        completion_tokens: 25,
+        total_tokens: 825,
+      },
+    } as any));
+
+    let malformedThrew = false;
+    try {
+      await analyzeCircuitImage({
+        image: VALID_JPEG_DATA_URL,
+        expectedBehavior: 'Powers on normally',
+        observedBehavior: 'Dead board',
+      });
+    } catch (err) {
+      malformedThrew = true;
+      assert(err instanceof DiagnosisParsingError, 'finish_reason="stop" with bad JSON throws DiagnosisParsingError');
+      const mapped = handleApiError(err);
+      assert(mapped.statusCode === 502, 'Mapped to HTTP 502');
+      assert(mapped.errorType === 'INVALID_MODEL_OUTPUT', 'Error type is INVALID_MODEL_OUTPUT (not token limit)');
+    }
+    assert(malformedThrew, 'Malformed JSON with stop finish_reason properly classified');
+
+    // Case 8.5: Absent / unrecognized finish_reason does not infer token exhaustion
+    setChatCompletionOverrideForTesting(async () => ({
+      id: 'chatcmpl-test-unrecognized',
+      object: 'chat.completion',
+      created: Date.now(),
+      model: 'meta-models/muse-spark-open-1026',
+      choices: [
+        {
+          index: 0,
+          finish_reason: 'content_filter',
+          message: {
+            role: 'assistant',
+            content: '{ invalid',
+          },
+        },
+      ],
+    } as any));
+
+    let unrecognizedThrew = false;
+    try {
+      await analyzeCircuitImage({
+        image: VALID_JPEG_DATA_URL,
+        expectedBehavior: 'Powers on normally',
+        observedBehavior: 'Dead board',
+      });
+    } catch (err) {
+      unrecognizedThrew = true;
+      assert(err instanceof DiagnosisParsingError, 'Unrecognized finish_reason with invalid JSON throws DiagnosisParsingError, not token exhaustion');
+      assert(!(err instanceof DiagnosisOutputLimitError), 'Did not falsely infer token limit');
+    }
+    assert(unrecognizedThrew, 'Unrecognized finish_reason handled safely without false token exhaustion');
+
+    // Case 8.6: Successful diagnosis safely captures non-sensitive numeric metadata
+    setChatCompletionOverrideForTesting(async () => ({
+      id: 'chatcmpl-test-success',
+      object: 'chat.completion',
+      created: Date.now(),
+      model: 'meta-models/muse-spark-open-1026',
+      choices: [
+        {
+          index: 0,
+          finish_reason: 'stop',
+          message: {
+            role: 'assistant',
+            content: JSON.stringify(MOCK_DIAGNOSIS),
+          },
+        },
+      ],
+      usage: {
+        prompt_tokens: 1120,
+        completion_tokens: 840,
+        total_tokens: 1960,
+      },
+    } as any));
+
+    const successfulDiagnosis = await analyzeCircuitImage({
+      image: VALID_JPEG_DATA_URL,
+      expectedBehavior: 'Powers on normally',
+      observedBehavior: 'Dead board',
+    });
+
+    assert(Boolean(successfulDiagnosis.metadata), 'Metadata attached to DiagnosisResponse');
+    assert(successfulDiagnosis.metadata?.promptTokens === 1120, 'promptTokens captured');
+    assert(successfulDiagnosis.metadata?.completionTokens === 840, 'completionTokens captured');
+    assert(successfulDiagnosis.metadata?.totalTokens === 1960, 'totalTokens captured');
+    assert(successfulDiagnosis.metadata?.finishReason === 'stop', 'finishReason captured');
+    assert(typeof successfulDiagnosis.metadata?.durationMs === 'number', 'durationMs captured as number');
+    assert(successfulDiagnosis.metadata!.durationMs >= 0, 'durationMs is non-negative');
+
+    // Case 8.7: Reassessment safely captures non-sensitive numeric metadata
+    setChatCompletionOverrideForTesting(async () => ({
+      id: 'chatcmpl-test-reassess-success',
+      object: 'chat.completion',
+      created: Date.now(),
+      model: 'meta-models/muse-spark-open-1026',
+      choices: [
+        {
+          index: 0,
+          finish_reason: 'stop',
+          message: {
+            role: 'assistant',
+            content: JSON.stringify(MOCK_REASSESSMENT),
+          },
+        },
+      ],
+      usage: {
+        prompt_tokens: 1500,
+        completion_tokens: 650,
+        total_tokens: 2150,
+      },
+    } as any));
+
+    const successfulReassessment = await reassessCircuitEvidence(reassessmentPayload);
+    assert(Boolean(successfulReassessment.metadata), 'Metadata attached to DiagnosisReassessmentResponse');
+    assert(successfulReassessment.metadata?.promptTokens === 1500, 'Reassessment promptTokens captured');
+    assert(successfulReassessment.metadata?.completionTokens === 650, 'Reassessment completionTokens captured');
+    assert(successfulReassessment.metadata?.totalTokens === 2150, 'Reassessment totalTokens captured');
+    assert(successfulReassessment.metadata?.finishReason === 'stop', 'Reassessment finishReason captured');
+
+    // Case 8.8: Missing usage metadata does not crash and metadata still captures durationMs
+    setChatCompletionOverrideForTesting(async () => ({
+      id: 'chatcmpl-test-no-usage',
+      object: 'chat.completion',
+      created: Date.now(),
+      model: 'meta-models/muse-spark-open-1026',
+      choices: [
+        {
+          index: 0,
+          finish_reason: undefined,
+          message: {
+            role: 'assistant',
+            content: JSON.stringify(MOCK_DIAGNOSIS),
+          },
+        },
+      ],
+    } as any));
+
+    const noUsageDiagnosis = await analyzeCircuitImage({
+      image: VALID_JPEG_DATA_URL,
+      expectedBehavior: 'Powers on normally',
+      observedBehavior: 'Dead board',
+    });
+    assert(Boolean(noUsageDiagnosis.metadata), 'Metadata attached even when gateway omits usage');
+    assert(noUsageDiagnosis.metadata?.promptTokens === undefined, 'promptTokens is undefined when absent');
+    assert(typeof noUsageDiagnosis.metadata?.durationMs === 'number', 'durationMs captured');
+
+    // Clean up override
+    setChatCompletionOverrideForTesting(null);
+
+    // Case 8.9: Prompt conciseness rules present in DIAGNOSTIC_SYSTEM_PROMPT and REASSESSMENT_SYSTEM_PROMPT
+    assert(DIAGNOSTIC_SYSTEM_PROMPT.includes('at most 3 primary fault hypotheses'), 'DIAGNOSTIC_SYSTEM_PROMPT limits hypotheses to 3');
+    assert(DIAGNOSTIC_SYSTEM_PROMPT.includes('at most 3 prioritized troubleshooting checks'), 'DIAGNOSTIC_SYSTEM_PROMPT limits checks to 3');
+    assert(REASSESSMENT_SYSTEM_PROMPT.includes('at most 3 next recommended checks'), 'REASSESSMENT_SYSTEM_PROMPT limits next checks to 3');
   } finally {
     if (server) {
       (server as Server).close();

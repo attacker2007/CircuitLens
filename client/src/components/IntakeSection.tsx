@@ -463,6 +463,14 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
         let userMessage = err.message;
         if (err.errorType === 'MISSING_API_KEY') {
           userMessage = t.missingApiKeyErrorNotice;
+        } else if (err.errorType === 'OUTPUT_TOKEN_LIMIT') {
+          userMessage = t.outputLimitErrorNotice;
+        } else if (err.errorType === 'INVALID_MODEL_OUTPUT') {
+          userMessage = t.invalidOutputErrorNotice;
+        } else if (err.errorType === 'SCHEMA_VALIDATION_ERROR') {
+          userMessage = t.schemaValidationErrorNotice;
+        } else if (err.errorType === 'MODEL_REFUSAL') {
+          userMessage = t.modelRefusalErrorNotice;
         } else if (err.errorType === 'RATE_LIMIT' || err.statusCode === 429) {
           userMessage = t.rateLimitErrorNotice;
         } else if (err.errorType === 'TIMEOUT' || err.statusCode === 504) {

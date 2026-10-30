@@ -109,6 +109,10 @@ export interface Translations {
   rateLimitErrorNotice: string;
   timeoutErrorNotice: string;
   genericErrorNotice: string;
+  outputLimitErrorNotice: string;
+  invalidOutputErrorNotice: string;
+  schemaValidationErrorNotice: string;
+  modelRefusalErrorNotice: string;
 
   // Results Presentation
   resultsSectionTitle: string;
@@ -330,6 +334,10 @@ export const translations: Record<SupportedLanguage, Translations> = {
     rateLimitErrorNotice: 'Meta Model API rate limit reached. Please wait a moment before trying again.',
     timeoutErrorNotice: 'Diagnostic request timed out. The model or network took too long to complete visual inference.',
     genericErrorNotice: 'An unexpected error occurred during diagnostic processing. Your entered symptoms and image have been preserved.',
+    outputLimitErrorNotice: 'The model reached its maximum output token limit before completing the diagnosis. Please provide more concise intake notes or contact support.',
+    invalidOutputErrorNotice: 'The model produced an unparseable response. The raw output did not conform to standard JSON syntax.',
+    schemaValidationErrorNotice: 'The model output was valid JSON but failed structural schema validation. Required diagnostic fields were missing or invalid.',
+    modelRefusalErrorNotice: 'The model refused to process this diagnostic request. Please review the image and symptom text for compliance with safety guidelines.',
 
     resultsSectionTitle: 'AI Circuit Diagnostic Report',
     resultsSectionSubtitle: 'Multi-hypothesis electronic failure analysis powered by Meta multimodal reasoning.',
@@ -548,6 +556,10 @@ export const translations: Record<SupportedLanguage, Translations> = {
     rateLimitErrorNotice: 'Límite de peticiones de Meta Model API alcanzado. Espere unos momentos antes de reintentar.',
     timeoutErrorNotice: 'La solicitud de diagnóstico excedió el tiempo límite. El modelo tardó demasiado en completar la inferencia visual.',
     genericErrorNotice: 'Ocurrió un error inesperado durante el diagnóstico. Sus síntomas ingresados y la imagen se han preservado.',
+    outputLimitErrorNotice: 'El modelo alcanzó el límite máximo de tokens de salida antes de completar el diagnóstico. Proporcione notas de entrada más concisas o comuníquese con soporte.',
+    invalidOutputErrorNotice: 'El modelo generó una respuesta no analizable. La salida sin procesar no cumplió con la sintaxis JSON estándar.',
+    schemaValidationErrorNotice: 'La salida del modelo era JSON válido pero falló la validación del esquema estructural. Faltaban campos de diagnóstico requeridos o eran inválidos.',
+    modelRefusalErrorNotice: 'El modelo se negó a procesar esta solicitud de diagnóstico. Revise la imagen y la descripción de síntomas para verificar el cumplimiento de las pautas de seguridad.',
 
     resultsSectionTitle: 'Informe Diagnóstico de Circuitos con IA',
     resultsSectionSubtitle: 'Análisis de fallas electrónicas con múltiples hipótesis impulsado por razonamiento multimodal de Meta.',
@@ -766,6 +778,10 @@ export const translations: Record<SupportedLanguage, Translations> = {
     rateLimitErrorNotice: 'تم بلوغ الحد الأقصى لمعدل الطلبات في Meta Model API. يُرجى الانتظار قليلاً ثم المحاولة مجدداً.',
     timeoutErrorNotice: 'انتهت مهلة طلب التشخيص. استغرق النموذج وقتاً طويلاً لإتمام المعالجة البصرية.',
     genericErrorNotice: 'حدث خطأ غير متوقع أثناء معالجة التشخيص. تم حفظ بيانات الأعراض والصورة المدخلة بأمان.',
+    outputLimitErrorNotice: 'وصل النموذج إلى الحد الأقصى لرموز الإخراج قبل إكمال التشخيص. يرجى تقديم ملاحظات أكثر إيجازًا أو الاتصال بالدعم.',
+    invalidOutputErrorNotice: 'أنتج النموذج استجابة غير قابلة للتحليل. لم تتوافق المخرجات مع بنية JSON القياسية.',
+    schemaValidationErrorNotice: 'كانت مخرجات النموذج بتنسيق JSON صالح لكنها فشلت في التحقق من صحة المخطط الهيكلي. حقول التشخيص المطلوبة مفقودة أو غير صالحة.',
+    modelRefusalErrorNotice: 'رفض النموذج معالجة طلب التشخيص هذا. يرجى مراجعة الصورة ووصف الأعراض للتأكد من التوافق مع إرشادات السلامة.',
 
     resultsSectionTitle: 'تقرير تشخيص الدائرة بالذكاء الاصطناعي',
     resultsSectionSubtitle: 'تحليل متعدد الفرضيات للأعطال الإلكترونية مدعوم بالاستدلال البصري لنموذج Meta AI.',

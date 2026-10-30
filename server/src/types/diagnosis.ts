@@ -83,6 +83,22 @@ export interface RecommendedCheck {
 }
 
 /**
+ * Non-sensitive numeric completion metadata captured from the model provider.
+ */
+export interface ModelCompletionMetadata {
+  /** Number of tokens evaluated in the prompt (if provided by model gateway) */
+  promptTokens?: number;
+  /** Number of tokens generated in the completion (if provided by model gateway) */
+  completionTokens?: number;
+  /** Total tokens processed (if provided by model gateway) */
+  totalTokens?: number;
+  /** Reason given by the model provider for terminating generation (e.g. 'stop', 'length') */
+  finishReason?: string;
+  /** Round-trip inference duration in milliseconds */
+  durationMs: number;
+}
+
+/**
  * Complete structured AI diagnostic report for a circuit investigation.
  */
 export interface DiagnosisResponse {
@@ -98,6 +114,8 @@ export interface DiagnosisResponse {
   limitations: string[];
   /** Essential precautions regarding hazardous voltages, static discharge, and power sequencing */
   safetyWarnings: string[];
+  /** Optional non-sensitive execution and token usage metadata */
+  metadata?: ModelCompletionMetadata;
 }
 
 /**
@@ -223,4 +241,6 @@ export interface DiagnosisReassessmentResponse {
   safetyWarnings: string[];
   /** Assessment constraints, unverified areas, or remaining uncertainties */
   limitations: string[];
+  /** Optional non-sensitive execution and token usage metadata */
+  metadata?: ModelCompletionMetadata;
 }

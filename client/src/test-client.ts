@@ -19,6 +19,8 @@ import {
   submitCircuitReassessment,
   DiagnosisClientError,
   DEFAULT_TIMEOUT_MS,
+  isValidDiagnosisResponse,
+  isValidReassessmentResponse,
 } from './api/diagnosisClient.ts';
 import {
   calculateTargetDimensions,
@@ -684,5 +686,122 @@ describe('CircuitLens Stage 5C-3D: Image Payload Optimization & Timeout Alignmen
       t.timeoutErrorNotice.includes('timed out'),
       't.timeoutErrorNotice accurately communicates timeout state'
     );
+  });
+});
+
+describe('CircuitLens Stage 5C-3G: Output Limits, Completion Metadata & Error Notices', () => {
+  it('marks OUTPUT_TOKEN_LIMIT errors as non-retryable with status 502', () => {
+    const err = new DiagnosisClientError(
+      'Model output reached maximum completion token limit.',
+      'OUTPUT_TOKEN_LIMIT',
+      502
+    );
+    assert.strictEqual(err.errorType, 'OUTPUT_TOKEN_LIMIT');
+    assert.strictEqual(err.statusCode, 502);
+    assert.strictEqual(err.isRetryable, false, 'Output token limit errors are permanent and not automatically retryable');
+  });
+
+  it('marks INVALID_MODEL_OUTPUT and SCHEMA_VALIDATION_ERROR as non-retryable', () => {
+    const parseErr = new DiagnosisClientError('Malformed JSON', 'INVALID_MODEL_OUTPUT', 502);
+    assert.strictEqual(parseErr.isRetryable, false);
+
+    const schemaErr = new DiagnosisClientError('Schema failure', 'SCHEMA_VALIDATION_ERROR', 502);
+    assert.strictEqual(schemaErr.isRetryable, false);
+
+    const refusalErr = new DiagnosisClientError('Refused', 'MODEL_REFUSAL', 422);
+    assert.strictEqual(refusalErr.isRetryable, false);
+  });
+
+  it('validates multilingual translations for token limit and error notices across all locales', () => {
+    const locales = ['en', 'es', 'ar'] as const;
+    for (const locale of locales) {
+      const loc = translations[locale];
+      assert.ok(loc.outputLimitErrorNotice.length > 10, `${locale} must define outputLimitErrorNotice`);
+      assert.ok(loc.invalidOutputErrorNotice.length > 10, `${locale} must define invalidOutputErrorNotice`);
+      assert.ok(loc.schemaValidationErrorNotice.length > 10, `${locale} must define schemaValidationErrorNotice`);
+      assert.ok(loc.modelRefusalErrorNotice.length > 10, `${locale} must define modelRefusalErrorNotice`);
+    }
+  });
+
+  it('isValidDiagnosisResponse accepts response with optional ModelCompletionMetadata without regression', () => {
+    const responseWithMetadata = {
+      summary: 'Short circuit on 3.3V rail',
+      visibleObservations: [
+        {
+          description: 'Cracked capacitor',
+          evidence: 'C12 package fracture',
+          confidence: 'high',
+        },
+      ],
+      hypotheses: [
+        {
+          title: 'C12 MLCC short',
+          reasoning: 'Crack causes ceramic dielectric breakdown',
+          supportingEvidence: ['Fracture on C12'],
+          confidence: 'high',
+          suggestedVerification: 'Probe C12 terminals',
+        },
+      ],
+      recommendedChecks: [
+        {
+          stepNumber: 1,
+          title: 'Cold resistance check across C12',
+          testType: 'Cold Resistance',
+          toolsNeeded: ['Multimeter'],
+          procedure: 'Probe unpowered',
+          expectedResult: '> 10 kΩ',
+          safetyNotes: ['Unpowered check'],
+        },
+      ],
+      limitations: ['Inner layers occluded'],
+      safetyWarnings: ['Ensure circuit is unpowered'],
+      metadata: {
+        promptTokens: 1100,
+        completionTokens: 850,
+        totalTokens: 1950,
+        finishReason: 'stop',
+        durationMs: 4200,
+      },
+    };
+
+    assert.strictEqual(isValidDiagnosisResponse(responseWithMetadata), true);
+  });
+
+  it('isValidReassessmentResponse accepts response with optional ModelCompletionMetadata without regression', () => {
+    const reassessmentWithMetadata = {
+      summary: 'Reassessment complete',
+      evidenceSynthesis: 'Evidence ev-101 confirms short',
+      revisedHypotheses: [
+        {
+          title: 'C12 MLCC short',
+          status: 'supported',
+          confidence: 'high',
+          explanationOfChange: 'Resistance measured 0.8 ohms',
+          citingEvidenceIds: ['ev-101'],
+        },
+      ],
+      nextRecommendedChecks: [
+        {
+          stepNumber: 1,
+          title: 'Remove C12',
+          testType: 'Rework',
+          toolsNeeded: ['Soldering iron'],
+          procedure: 'Desolder C12',
+          expectedResult: 'Short clears',
+          safetyNotes: ['ESD safe workstation'],
+        },
+      ],
+      safetyWarnings: ['Do not power board'],
+      limitations: ['Trace inductance not measured'],
+      metadata: {
+        promptTokens: 1500,
+        completionTokens: 600,
+        totalTokens: 2100,
+        finishReason: 'stop',
+        durationMs: 3800,
+      },
+    };
+
+    assert.strictEqual(isValidReassessmentResponse(reassessmentWithMetadata), true);
   });
 });
