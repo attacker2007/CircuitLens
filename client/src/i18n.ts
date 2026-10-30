@@ -224,6 +224,16 @@ export interface Translations {
   reassessmentCycleBadge: string;
   initialChecksCycleBadge: string;
   allChecksCompletedNotice: string;
+  initialDiagnosisBadge: string;
+  latestReassessmentBadge: string;
+  historicalReassessmentBadge: string;
+  hypothesesRevisedNotice: string;
+  viewLatestReassessmentBtn: string;
+  latestStatusLabel: string;
+  jumpToHypothesisRevision: string;
+  hardwareAccessDisclaimer: string;
+  evidenceCitationSuperseded: string;
+  evidenceCitationSupersededHint: string;
 }
 
 export const translations: Record<SupportedLanguage, Translations> = {
@@ -448,6 +458,16 @@ export const translations: Record<SupportedLanguage, Translations> = {
     reassessmentCycleBadge: 'Reassessment Round',
     initialChecksCycleBadge: 'Initial Sequence (Round 0)',
     allChecksCompletedNotice: 'All recommended checks for this round have been recorded.',
+    initialDiagnosisBadge: 'Initial Diagnosis (Pre-Test)',
+    latestReassessmentBadge: 'Latest Evidence-Based Reassessment',
+    historicalReassessmentBadge: 'Prior Reassessment Round',
+    hypothesesRevisedNotice: 'These initial hypotheses have been updated by recorded test evidence in Reassessment Round #{round}.',
+    viewLatestReassessmentBtn: 'View Latest Reassessment',
+    latestStatusLabel: 'Latest Evaluated Status',
+    jumpToHypothesisRevision: 'Jump to revised evaluation in Latest Round',
+    hardwareAccessDisclaimer: 'CircuitLens does not have direct access to physical hardware. Physical tests, measurements, and component changes shown here are based on information reported by the technician.',
+    evidenceCitationSuperseded: 'Superseded',
+    evidenceCitationSupersededHint: 'This measurement or check was superseded by a later test record.',
   },
   es: {
     brandName: 'CircuitLens',
@@ -670,6 +690,16 @@ export const translations: Record<SupportedLanguage, Translations> = {
     reassessmentCycleBadge: 'Ronda de reevaluación',
     initialChecksCycleBadge: 'Secuencia inicial (Ronda 0)',
     allChecksCompletedNotice: 'Se han registrado todas las verificaciones recomendadas para esta ronda.',
+    initialDiagnosisBadge: 'Diagnóstico inicial (previo a pruebas)',
+    latestReassessmentBadge: 'Última reevaluación basada en evidencia',
+    historicalReassessmentBadge: 'Ronda de reevaluación anterior',
+    hypothesesRevisedNotice: 'Estas hipótesis iniciales han sido actualizadas con evidencia registrada en la Ronda #{round}.',
+    viewLatestReassessmentBtn: 'Ver última reevaluación',
+    latestStatusLabel: 'Último estado evaluado',
+    jumpToHypothesisRevision: 'Ir a la evaluación revisada en la última ronda',
+    hardwareAccessDisclaimer: 'CircuitLens no tiene acceso directo al hardware físico. Las pruebas físicas, mediciones y cambios de componentes que se muestran aquí se basan en la información reportada por el técnico.',
+    evidenceCitationSuperseded: 'Reemplazado',
+    evidenceCitationSupersededHint: 'Esta medición o verificación fue reemplazada por un registro de prueba posterior.',
   },
   ar: {
     brandName: 'CircuitLens',
@@ -892,6 +922,16 @@ export const translations: Record<SupportedLanguage, Translations> = {
     reassessmentCycleBadge: 'جولة إعادة التقييم',
     initialChecksCycleBadge: 'التسلسل الأولي (الجولة 0)',
     allChecksCompletedNotice: 'تم تسجيل جميع الفحوصات الموصى بها لهذه الجولة.',
+    initialDiagnosisBadge: 'التشخيص الأولي (قبل الفحص)',
+    latestReassessmentBadge: 'أحدث إعادة تقييم مستندة إلى الأدلة',
+    historicalReassessmentBadge: 'جولة إعادة تقييم سابقة',
+    hypothesesRevisedNotice: 'تم تحديث هذه الفرضيات الأولية بأدلة الفحص المسجلة في جولة إعادة التقييم رقم #{round}.',
+    viewLatestReassessmentBtn: 'عرض أحدث إعادة تقييم',
+    latestStatusLabel: 'أحدث حالة تم تقييمها',
+    jumpToHypothesisRevision: 'الانتقال إلى التقييم المراجع في أحدث جولة',
+    hardwareAccessDisclaimer: 'لا يمتلك CircuitLens وصولاً مباشراً إلى العتاد المادي. تستند الاختبارات المادية والقياسات وتغييرات المكونات الموضحة هنا إلى المعلومات المسجلة بواسطة الفني.',
+    evidenceCitationSuperseded: 'تم استبداله',
+    evidenceCitationSupersededHint: 'تم استبدال هذا القياس أو الفحص بسجل اختبار لاحق.',
   },
 };
 

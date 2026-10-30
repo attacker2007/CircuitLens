@@ -34,9 +34,11 @@ import {
   generateInvestigationId,
 } from './utils/evidenceValidation.ts';
 import { translations } from './i18n.ts';
+import { findLatestRevisedHypothesis } from './utils/hypothesisMatching.ts';
 import type {
   DiagnosisRequest,
   DiagnosisReassessmentRequest,
+  DiagnosisReassessmentResponse,
   EvidenceRecord,
 } from './types/diagnosis.ts';
 
@@ -843,5 +845,323 @@ describe('CircuitLens Stage 5C-3G: Output Limits, Completion Metadata & Error No
     };
 
     assert.strictEqual(isValidReassessmentResponse(conciseDeltaResponse), true);
+  });
+});
+
+describe('CircuitLens Stage 5C-3L-3: Reassessment UI Clarity & Hypothesis Revision Matching', () => {
+  const round1Response: DiagnosisReassessmentResponse = {
+    summary: 'Round 1: Resistor tested normal; ground path check was inconclusive.',
+    evidenceSynthesis: 'Cold resistance of 220 ohms refutes open resistor. Ground connection remains suspect.',
+    revisedHypotheses: [
+      {
+        title: 'Open or Disconnected Ground Return Path',
+        status: 'unresolved',
+        confidence: 'medium',
+        explanationOfChange: 'Visual check was inconclusive; continuity not yet measured.',
+        citingEvidenceIds: ['ev-r1-1'],
+        suggestedVerification: 'Measure continuity from LED cathode to Arduino GND pin.',
+      },
+      {
+        title: 'Current Limiting Resistor R1 Open Circuit',
+        status: 'contradicted',
+        confidence: 'high',
+        explanationOfChange: 'Cold resistance of 219.4 ohms matches specification.',
+        citingEvidenceIds: ['ev-r1-2'],
+      },
+      {
+        title: 'LED Internal Bond Wire Failure',
+        status: 'unresolved',
+        confidence: 'low',
+        explanationOfChange: 'Diode mode test not yet conducted.',
+        citingEvidenceIds: [],
+        suggestedVerification: 'Perform diode check on LED.',
+      },
+    ],
+    nextRecommendedChecks: [],
+    safetyWarnings: ['Ensure circuit is unpowered while measuring resistance.'],
+    limitations: [],
+  };
+
+  const round2Response: DiagnosisReassessmentResponse = {
+    summary: 'Round 2: Ground return wire was re-seated, completely resolving the fault.',
+    evidenceSynthesis: 'Physical re-seating of the loose ground jumper wire restored 1 Hz LED blinking.',
+    revisedHypotheses: [
+      {
+        title: 'Open or Disconnected Ground Return Path',
+        status: 'supported',
+        confidence: 'high',
+        explanationOfChange: 'Re-seating ground jumper wire restored full circuit operation.',
+        citingEvidenceIds: ['ev-r2-1'],
+      },
+      {
+        title: 'Current Limiting Resistor R1 Open Circuit',
+        status: 'contradicted',
+        confidence: 'high',
+        explanationOfChange: 'Confirmed normal in Round 1.',
+        citingEvidenceIds: ['ev-r1-2'],
+      },
+      {
+        title: 'LED Internal Bond Wire Failure',
+        status: 'contradicted',
+        confidence: 'high',
+        explanationOfChange: 'Normal blinking proves LED diode junction and bond wire are healthy.',
+        citingEvidenceIds: ['ev-r2-1'],
+      },
+    ],
+    nextRecommendedChecks: [],
+    safetyWarnings: ['Disconnect USB power before altering breadboard wiring.'],
+    limitations: [],
+  };
+
+  it('findLatestRevisedHypothesis returns null when no reassessment has occurred (initial diagnosis)', () => {
+    assert.strictEqual(findLatestRevisedHypothesis('Open or Disconnected Ground Return Path', null), null);
+    assert.strictEqual(findLatestRevisedHypothesis('Open or Disconnected Ground Return Path', undefined), null);
+  });
+
+  it('findLatestRevisedHypothesis matches single revised hypothesis by title after one completed reassessment', () => {
+    const match = findLatestRevisedHypothesis('Current Limiting Resistor R1 Open Circuit', round1Response);
+    assert.notStrictEqual(match, null);
+    assert.strictEqual(match?.status, 'contradicted');
+    assert.strictEqual(match?.confidence, 'high');
+  });
+
+  it('findLatestRevisedHypothesis reflects latest round evaluation across multiple reassessment cycles', () => {
+    // In Round 1, Ground Return Path was 'unresolved'
+    const round1Match = findLatestRevisedHypothesis('Open or Disconnected Ground Return Path', round1Response);
+    assert.strictEqual(round1Match?.status, 'unresolved');
+
+    // In Round 2 (latest), Ground Return Path became 'supported'
+    const round2Match = findLatestRevisedHypothesis('Open or Disconnected Ground Return Path', round2Response);
+    assert.strictEqual(round2Match?.status, 'supported');
+    assert.strictEqual(round2Match?.confidence, 'high');
+  });
+
+  it('findLatestRevisedHypothesis accurately tracks initial high-confidence hypothesis revised to contradicted', () => {
+    // Initial hypothesis might have had high confidence, but bench test contradicted it
+    const match = findLatestRevisedHypothesis('Current Limiting Resistor R1 Open Circuit', round2Response);
+    assert.notStrictEqual(match, null);
+    assert.strictEqual(match?.status, 'contradicted');
+  });
+
+  it('findLatestRevisedHypothesis accurately tracks initial hypothesis revised to supported', () => {
+    const match = findLatestRevisedHypothesis('Open or Disconnected Ground Return Path', round2Response);
+    assert.notStrictEqual(match, null);
+    assert.strictEqual(match?.status, 'supported');
+  });
+
+  it('findLatestRevisedHypothesis accurately tracks initial hypothesis remaining unresolved', () => {
+    const match = findLatestRevisedHypothesis('LED Internal Bond Wire Failure', round1Response);
+    assert.notStrictEqual(match, null);
+    assert.strictEqual(match?.status, 'unresolved');
+    assert.strictEqual(Array.isArray(match?.citingEvidenceIds), true);
+  });
+
+  it('findLatestRevisedHypothesis omits status when correspondence is missing (no match)', () => {
+    const match = findLatestRevisedHypothesis('Microcontroller Internal Clock Failure', round1Response);
+    assert.strictEqual(match, null);
+  });
+
+  it('findLatestRevisedHypothesis omits status when correspondence is ambiguous (duplicate titles)', () => {
+    const ambiguousResponse: DiagnosisReassessmentResponse = {
+      ...round1Response,
+      revisedHypotheses: [
+        {
+          title: 'Ambiguous Ground Fault',
+          status: 'supported',
+          confidence: 'high',
+          explanationOfChange: 'Duplicate 1.',
+          citingEvidenceIds: [],
+        },
+        {
+          title: 'Ambiguous Ground Fault',
+          status: 'contradicted',
+          confidence: 'low',
+          explanationOfChange: 'Duplicate 2.',
+          citingEvidenceIds: [],
+        },
+      ],
+    };
+
+    // Never guess between ambiguous duplicates
+    const match = findLatestRevisedHypothesis('Ambiguous Ground Fault', ambiguousResponse);
+    assert.strictEqual(match, null);
+  });
+
+  it('findLatestRevisedHypothesis matches reliably by title when hypotheses are returned in a different order (no array index fallback)', () => {
+    // Permute array order: LED bond wire at index 0, Ground path at index 1, Resistor at index 2
+    const permutedResponse: DiagnosisReassessmentResponse = {
+      ...round2Response,
+      revisedHypotheses: [
+        round2Response.revisedHypotheses[2], // LED bond wire
+        round2Response.revisedHypotheses[0], // Ground return
+        round2Response.revisedHypotheses[1], // Resistor
+      ],
+    };
+
+    // Index 0 in initial hypothesis was Ground Return. In permuted response, index 0 is LED bond wire.
+    // Title matching must find Ground Return ('supported'), proving array index is NOT used!
+    const groundMatch = findLatestRevisedHypothesis('Open or Disconnected Ground Return Path', permutedResponse);
+    assert.strictEqual(groundMatch?.status, 'supported');
+    assert.strictEqual(groundMatch?.title, 'Open or Disconnected Ground Return Path');
+
+    const ledMatch = findLatestRevisedHypothesis('LED Internal Bond Wire Failure', permutedResponse);
+    assert.strictEqual(ledMatch?.status, 'contradicted');
+    assert.strictEqual(ledMatch?.title, 'LED Internal Bond Wire Failure');
+  });
+
+  it('reassessment rounds ledger preserves historical rounds immutably when appending new cycles', () => {
+    const rounds: DiagnosisReassessmentResponse[] = [];
+    rounds.push(round1Response);
+    assert.strictEqual(rounds.length, 1);
+    assert.strictEqual(rounds[0].revisedHypotheses[0].status, 'unresolved');
+
+    rounds.push(round2Response);
+    assert.strictEqual(rounds.length, 2);
+    // Historical round 1 is preserved untouched
+    assert.strictEqual(rounds[0].revisedHypotheses[0].status, 'unresolved');
+    // Round 2 reflects the new supported status
+    assert.strictEqual(rounds[1].revisedHypotheses[0].status, 'supported');
+  });
+
+  it('Stage 5C-3L-3 localization keys are complete and valid across EN, ES, and AR', () => {
+    const langs = ['en', 'es', 'ar'] as const;
+    const requiredKeys = [
+      'initialDiagnosisBadge',
+      'latestReassessmentBadge',
+      'historicalReassessmentBadge',
+      'hypothesesRevisedNotice',
+      'viewLatestReassessmentBtn',
+      'latestStatusLabel',
+      'jumpToHypothesisRevision',
+    ] as const;
+
+    langs.forEach((lang) => {
+      const dict = translations[lang];
+      requiredKeys.forEach((key) => {
+        assert.strictEqual(
+          typeof dict[key],
+          'string',
+          `Key "${key}" must be a string in "${lang}"`
+        );
+        assert.strictEqual(
+          dict[key].trim().length > 0,
+          true,
+          `Key "${key}" must be non-empty in "${lang}"`
+        );
+      });
+
+      // Verify parameterized template string
+      assert.strictEqual(
+        dict.hypothesesRevisedNotice.includes('{round}'),
+        true,
+        `hypothesesRevisedNotice must include "{round}" placeholder in "${lang}"`
+      );
+    });
+  });
+});
+
+describe('CircuitLens Stage 5C-3L-4: Epistemic Integrity & Superseded Citations', () => {
+  it('epistemic disclaimer and superseded citation keys are complete and valid across EN, ES, and AR', () => {
+    const langs = ['en', 'es', 'ar'] as const;
+    const requiredKeys = [
+      'hardwareAccessDisclaimer',
+      'evidenceCitationSuperseded',
+      'evidenceCitationSupersededHint',
+    ] as const;
+
+    langs.forEach((lang) => {
+      const dict = translations[lang];
+      requiredKeys.forEach((key) => {
+        assert.strictEqual(
+          typeof dict[key],
+          'string',
+          `Key "${key}" must be a string in "${lang}"`
+        );
+        assert.strictEqual(
+          dict[key].trim().length > 0,
+          true,
+          `Key "${key}" must be non-empty in "${lang}"`
+        );
+      });
+    });
+
+    // Verify exact expected semantic phrases in English
+    assert.strictEqual(
+      translations.en.hardwareAccessDisclaimer.includes('does not have direct access to physical hardware'),
+      true,
+      'EN disclaimer must state lack of direct hardware access'
+    );
+    assert.strictEqual(
+      translations.en.hardwareAccessDisclaimer.includes('reported by the technician'),
+      true,
+      'EN disclaimer must attribute bench data to the technician'
+    );
+  });
+
+  it('correctly derives superseded evidence IDs and distinguishes current from superseded citations', () => {
+    const sampleEvidenceLog = [
+      {
+        id: 'ev-attempt-1',
+        targetRecommendationId: 'rec-1',
+        cycleIndex: 0,
+        stepNumber: 1,
+        checkTitle: 'Measure 3.3V rail voltage',
+        outcome: 'failed' as const,
+        numericValue: 0.1,
+        measurementUnit: 'V',
+        technicianNotes: 'Lead slipped during probing',
+        recordedAt: '2026-10-30T10:00:00Z',
+      },
+      {
+        id: 'ev-attempt-2',
+        targetRecommendationId: 'rec-1',
+        cycleIndex: 0,
+        stepNumber: 1,
+        checkTitle: 'Measure 3.3V rail voltage (retried with micro-probe)',
+        outcome: 'passed' as const,
+        numericValue: 3.31,
+        measurementUnit: 'V',
+        technicianNotes: 'Solid probe contact; rail is normal',
+        recordedAt: '2026-10-30T10:05:00Z',
+        supersedesEvidenceId: 'ev-attempt-1',
+      },
+      {
+        id: 'ev-unrelated-3',
+        targetRecommendationId: 'rec-2',
+        cycleIndex: 0,
+        stepNumber: 2,
+        checkTitle: 'Check decoupling capacitor ESR',
+        outcome: 'passed' as const,
+        numericValue: 0.05,
+        measurementUnit: 'Ohms',
+        recordedAt: '2026-10-30T10:10:00Z',
+      },
+    ];
+
+    // Derive superseded IDs exactly as ReassessmentResultsView does
+    const supersededEvidenceIds = new Set(
+      sampleEvidenceLog
+        .map((e) => e.supersedesEvidenceId)
+        .filter((id): id is string => typeof id === 'string' && id.trim() !== '')
+    );
+
+    // ev-attempt-1 is superseded
+    assert.strictEqual(supersededEvidenceIds.has('ev-attempt-1'), true);
+    // ev-attempt-2 is current (active)
+    assert.strictEqual(supersededEvidenceIds.has('ev-attempt-2'), false);
+    // ev-unrelated-3 is current (active)
+    assert.strictEqual(supersededEvidenceIds.has('ev-unrelated-3'), false);
+
+    // Verify historical record preservation: ev-attempt-1 still has all historical values
+    const historicalRecord = sampleEvidenceLog.find((e) => e.id === 'ev-attempt-1');
+    assert.strictEqual(historicalRecord?.outcome, 'failed');
+    assert.strictEqual(historicalRecord?.numericValue, 0.1);
+    assert.strictEqual(historicalRecord?.technicianNotes, 'Lead slipped during probing');
+
+    // Verify active record has corrected values
+    const currentRecord = sampleEvidenceLog.find((e) => e.id === 'ev-attempt-2');
+    assert.strictEqual(currentRecord?.outcome, 'passed');
+    assert.strictEqual(currentRecord?.numericValue, 3.31);
+    assert.strictEqual(currentRecord?.supersedesEvidenceId, 'ev-attempt-1');
   });
 });

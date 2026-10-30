@@ -793,6 +793,14 @@ function validateRevisedHypothesis(
     );
   }
 
+  // Mandatory citation requirement: non-unresolved statuses MUST cite at least one evidence ID
+  if (status !== 'unresolved' && val.citingEvidenceIds.length === 0) {
+    throw new ReassessmentValidationError(
+      `Field "revisedHypotheses[${index}].citingEvidenceIds" must contain at least one evidence citation when status is "${status}". Only "unresolved" hypotheses may have an empty citation list.`
+    );
+  }
+
+  const seenCitations = new Set<string>();
   const citingEvidenceIds = val.citingEvidenceIds.map((cId, cIdx) => {
     if (typeof cId !== 'string' || cId.trim() === '') {
       throw new ReassessmentValidationError(
@@ -805,6 +813,13 @@ function validateRevisedHypothesis(
         `Field "revisedHypotheses[${index}].citingEvidenceIds[${cIdx}]" exceeds maximum length of ${REASSESSMENT_RESPONSE_LIMITS.MAX_CITATION_ID_LENGTH} characters.`
       );
     }
+
+    if (seenCitations.has(cleanId)) {
+      throw new ReassessmentValidationError(
+        `Field "revisedHypotheses[${index}].citingEvidenceIds" contains duplicate evidence citation "${cleanId}".`
+      );
+    }
+    seenCitations.add(cleanId);
 
     if (submittedEvidenceIds && !submittedEvidenceIds.has(cleanId)) {
       throw new ReassessmentValidationError(

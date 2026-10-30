@@ -8,6 +8,7 @@ import type {
   DiagnosisReassessmentRequest,
   DiagnosisReassessmentResponse,
   DiagnosticContextPayload,
+  RevisedHypothesisStatus,
 } from '../types/diagnosis';
 import type { IntakeFormValues } from '../types/intake';
 import {
@@ -21,6 +22,7 @@ import {
 import { EvidenceCapturePanel } from './EvidenceCapturePanel';
 import { EvidenceLogView } from './EvidenceLogView';
 import { ReassessmentResultsView } from './ReassessmentResultsView';
+import { findLatestRevisedHypothesis } from '../utils/hypothesisMatching';
 
 interface DiagnosticResultsProps {
   diagnosis: DiagnosisResponse;
@@ -250,6 +252,71 @@ export function DiagnosticResults({
     }
   };
 
+  const latestReassessment = useMemo(() => {
+    return reassessments.length > 0 ? reassessments[reassessments.length - 1] : null;
+  }, [reassessments]);
+
+  const getRevisedStatusLabel = (status: RevisedHypothesisStatus): string => {
+    switch (status) {
+      case 'supported':
+        return t.statusSupported;
+      case 'weakened':
+        return t.statusWeakened;
+      case 'contradicted':
+        return t.statusContradicted;
+      case 'unresolved':
+      default:
+        return t.statusUnresolved;
+    }
+  };
+
+  const getRevisedStatusBadgeClass = (status: RevisedHypothesisStatus): string => {
+    switch (status) {
+      case 'supported':
+        return 'status-badge-supported';
+      case 'weakened':
+        return 'status-badge-weakened';
+      case 'contradicted':
+        return 'status-badge-contradicted';
+      case 'unresolved':
+      default:
+        return 'status-badge-unresolved';
+    }
+  };
+
+  const handleScrollToLatestReassessment = () => {
+    const target = document.getElementById('latest-reassessment-view');
+    if (target) {
+      const prefersReducedMotion =
+        typeof window !== 'undefined' &&
+        window.matchMedia &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      target.scrollIntoView({
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+        block: 'start',
+      });
+      target.focus({ preventScroll: true });
+    }
+  };
+
+  const handleScrollToHypothesisRevision = (revisedTitle: string) => {
+    const targetId = `latest-rev-hyp-${encodeURIComponent(revisedTitle.trim().toLowerCase())}`;
+    const target = document.getElementById(targetId);
+    if (target) {
+      const prefersReducedMotion =
+        typeof window !== 'undefined' &&
+        window.matchMedia &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      target.scrollIntoView({
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+        block: 'nearest',
+      });
+      target.focus({ preventScroll: true });
+    } else {
+      handleScrollToLatestReassessment();
+    }
+  };
+
   return (
     <div className="diagnosis-results-root" role="region" aria-labelledby="results-main-heading">
       {/* Results Header Panel */}
@@ -409,26 +476,111 @@ export function DiagnosticResults({
               {t.hypothesesTitle}
             </h3>
           </div>
+          <span className="stage-status-badge initial-diagnosis-badge">
+            {t.initialDiagnosisBadge}
+          </span>
         </div>
         <p className="intake-section-desc">{t.hypothesesSubtitle}</p>
 
+        {/* Informational banner when subsequent reassessment rounds have updated the fault analysis */}
+        {reassessments.length > 0 && (
+          <div
+            className="hypotheses-reassessment-notice"
+            role="region"
+            aria-label={t.hypothesesRevisedNotice.replace('{round}', String(reassessments.length))}
+          >
+            <div className="notice-content">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="notice-icon"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              <p className="notice-text">
+                {t.hypothesesRevisedNotice.replace('{round}', String(reassessments.length))}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="action-btn secondary-btn view-latest-reassessment-btn"
+              onClick={handleScrollToLatestReassessment}
+              aria-controls="latest-reassessment-view"
+            >
+              <span>{t.viewLatestReassessmentBtn}</span>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="7 13 12 18 17 13" />
+                <polyline points="7 6 12 11 17 6" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         <div className="hypotheses-list">
-          {diagnosis.hypotheses.map((hyp, idx) => (
-            <article key={`hyp-${idx}`} className="hypothesis-card">
-              <div className="hypothesis-card-header">
-                <div className="hypothesis-title-group">
-                  <span className="hypothesis-rank" aria-hidden="true">
-                    H{idx + 1}
-                  </span>
-                  <h4 className="hypothesis-title">{hyp.title}</h4>
+          {diagnosis.hypotheses.map((hyp, idx) => {
+            const latestRevised = findLatestRevisedHypothesis(hyp.title, latestReassessment);
+            return (
+              <article key={`hyp-${idx}`} className="hypothesis-card">
+                <div className="hypothesis-card-header">
+                  <div className="hypothesis-title-group">
+                    <span className="hypothesis-rank" aria-hidden="true">
+                      H{idx + 1}
+                    </span>
+                    <h4 className="hypothesis-title">{hyp.title}</h4>
+                  </div>
+                  <div className="hypothesis-badges-cluster">
+                    <span
+                      className={`confidence-badge ${getConfidenceBadgeClass(hyp.confidence)}`}
+                      title={`${t.confidenceLabel} (${t.initialDiagnosisBadge}): ${getConfidenceLabel(
+                        hyp.confidence
+                      )}`}
+                    >
+                      {getConfidenceLabel(hyp.confidence)}
+                    </span>
+                    {latestRevised && (
+                      <button
+                        type="button"
+                        className={`status-badge latest-status-badge ${getRevisedStatusBadgeClass(
+                          latestRevised.status
+                        )}`}
+                        onClick={() => handleScrollToHypothesisRevision(hyp.title)}
+                        title={`${t.latestStatusLabel}: ${getRevisedStatusLabel(
+                          latestRevised.status
+                        )} (${t.reassessmentCycleBadge} #${reassessments.length})`}
+                        aria-label={`${t.latestStatusLabel}: ${getRevisedStatusLabel(
+                          latestRevised.status
+                        )} (${t.reassessmentCycleBadge} #${reassessments.length}). ${
+                          t.jumpToHypothesisRevision
+                        }`}
+                      >
+                        <span className="badge-prefix">{t.latestStatusLabel}: </span>
+                        <strong>{getRevisedStatusLabel(latestRevised.status)}</strong>
+                        <span className="badge-cycle" dir="ltr">
+                          {' '}
+                          (R{reassessments.length})
+                        </span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <span
-                  className={`confidence-badge ${getConfidenceBadgeClass(hyp.confidence)}`}
-                  title={`${t.confidenceLabel}: ${getConfidenceLabel(hyp.confidence)}`}
-                >
-                  {getConfidenceLabel(hyp.confidence)}
-                </span>
-              </div>
 
               <div className="hypothesis-body">
                 <div className="hypothesis-field">
@@ -472,7 +624,8 @@ export function DiagnosticResults({
                 </div>
               </div>
             </article>
-          ))}
+          );
+        })}
         </div>
       </section>
 
@@ -885,6 +1038,7 @@ export function DiagnosticResults({
           reassessment={reassessment}
           evidenceLog={evidenceLog}
           cycleNumber={rIdx + 1}
+          isLatest={rIdx === reassessments.length - 1}
           t={t}
           onSelectRecommendation={(id) => {
             setSelectedRecommendationId(id);

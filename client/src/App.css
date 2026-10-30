@@ -2719,6 +2719,19 @@
   margin-top: 0.15rem;
 }
 
+.hardware-disclaimer-banner {
+  border-left-color: var(--accent-amber);
+}
+
+[dir="rtl"] .hardware-disclaimer-banner {
+  border-left-color: var(--border-color);
+  border-right-color: var(--accent-amber);
+}
+
+.hardware-disclaimer-banner .disclaimer-icon {
+  color: var(--accent-amber);
+}
+
 /* Evidence Synthesis Box */
 .evidence-synthesis-box {
   background: var(--bg-panel-elevated);
@@ -2878,6 +2891,21 @@
   color: var(--accent-cyan);
 }
 
+.citation-card-superseded {
+  opacity: 0.85;
+  border-style: dashed;
+}
+
+.citation-superseded-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent-amber);
+  background: var(--accent-amber-dim, rgba(245, 158, 11, 0.15));
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
 .citation-chip.chip-unresolved {
   display: inline-flex;
   align-items: center;
@@ -2932,3 +2960,102 @@
   }
 }
 
+/* Stage 5C-3L-3: Reassessment UI Clarity & Hypothesis Revision Visibility */
+.initial-diagnosis-badge {
+  background: rgba(140, 158, 185, 0.12);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.hypotheses-reassessment-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  background: var(--accent-cyan-dim);
+  border: 1px solid var(--accent-cyan-border);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.hypotheses-reassessment-notice .notice-content {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1 1 300px;
+}
+
+.hypotheses-reassessment-notice .notice-icon {
+  color: var(--accent-cyan);
+  flex-shrink: 0;
+}
+
+.hypotheses-reassessment-notice .notice-text {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.view-latest-reassessment-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+button.latest-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.15s ease;
+  font-family: inherit;
+}
+
+button.latest-status-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+button.latest-status-badge:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+.latest-reassessment-panel {
+  border-inline-start: 4px solid var(--accent-cyan);
+}
+
+.historical-reassessment-panel {
+  opacity: 0.92;
+  border-inline-start: 4px solid var(--border-color);
+}
+
+.latest-reassessment-tag {
+  background: var(--accent-cyan-dim);
+  color: var(--accent-cyan);
+  border: 1px solid var(--accent-cyan-border);
+}
+
+.historical-reassessment-tag {
+  background: rgba(140, 158, 185, 0.12);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+@media (max-width: 768px) {
+  .hypotheses-reassessment-notice {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .view-latest-reassessment-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

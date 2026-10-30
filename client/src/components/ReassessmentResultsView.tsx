@@ -18,6 +18,7 @@ interface ReassessmentResultsViewProps {
   reassessment: DiagnosisReassessmentResponse;
   evidenceLog: EvidenceRecord[];
   cycleNumber: number;
+  isLatest?: boolean;
   t: Translations;
   onSelectRecommendation?: (targetRecommendationId: string) => void;
 }
@@ -26,9 +27,17 @@ export function ReassessmentResultsView({
   reassessment,
   evidenceLog,
   cycleNumber,
+  isLatest = false,
   t,
   onSelectRecommendation,
 }: ReassessmentResultsViewProps) {
+  // Track IDs that have been superseded by subsequent evidence records in history
+  const supersededEvidenceIds = new Set(
+    evidenceLog
+      .map((e) => e.supersedesEvidenceId)
+      .filter((id): id is string => typeof id === 'string' && id.trim() !== '')
+  );
+
   const getStatusBadgeClass = (status: RevisedHypothesisStatus): string => {
     switch (status) {
       case 'supported':
@@ -111,7 +120,11 @@ export function ReassessmentResultsView({
 
   return (
     <div
-      className="card-panel reassessment-results-panel"
+      id={isLatest ? 'latest-reassessment-view' : `reassessment-round-${cycleNumber}`}
+      tabIndex={isLatest ? -1 : undefined}
+      className={`card-panel reassessment-results-panel ${
+        isLatest ? 'latest-reassessment-panel' : 'historical-reassessment-panel'
+      }`}
       role="region"
       aria-labelledby={`reassessment-heading-${cycleNumber}`}
     >
@@ -140,9 +153,15 @@ export function ReassessmentResultsView({
             <p className="intake-section-desc">{t.reassessmentSectionSubtitle}</p>
           </div>
         </div>
-        <span className="stage-status-badge reassessment-cycle-tag">
-          {t.reassessmentCycleBadge} #{cycleNumber}
-        </span>
+        {isLatest ? (
+          <span className="stage-status-badge latest-reassessment-tag">
+            {t.latestReassessmentBadge} (#{cycleNumber})
+          </span>
+        ) : (
+          <span className="stage-status-badge historical-reassessment-tag">
+            {t.historicalReassessmentBadge} #{cycleNumber}
+          </span>
+        )}
       </div>
 
       {/* 2. Explicit Notice: No New Visual Inspection Occurred */}
@@ -164,6 +183,27 @@ export function ReassessmentResultsView({
           <line x1="12" y1="8" x2="12.01" y2="8" />
         </svg>
         <p>{t.noNewVisualInspectionNotice}</p>
+      </div>
+
+      {/* 2B. Persistent Hardware Access & Epistemic Attribution Disclaimer */}
+      <div className="inspection-notice-banner hardware-disclaimer-banner" role="note">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="notice-icon disclaimer-icon"
+          aria-hidden="true"
+        >
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+        <p>{t.hardwareAccessDisclaimer}</p>
       </div>
 
       {/* 3. Safety Warnings from Reassessment */}
@@ -243,7 +283,16 @@ export function ReassessmentResultsView({
 
         <div className="hypotheses-list">
           {reassessment.revisedHypotheses.map((hyp, idx) => (
-            <article key={`rev-hyp-${idx}`} className="hypothesis-card revised-hypothesis-card">
+            <article
+              key={`rev-hyp-${idx}`}
+              id={
+                isLatest
+                  ? `latest-rev-hyp-${encodeURIComponent(hyp.title.trim().toLowerCase())}`
+                  : undefined
+              }
+              tabIndex={isLatest ? -1 : undefined}
+              className="hypothesis-card revised-hypothesis-card"
+            >
               <div className="hypothesis-card-header">
                 <div className="hypothesis-title-group">
                   <span className="hypothesis-rank" aria-hidden="true">
@@ -282,6 +331,7 @@ export function ReassessmentResultsView({
                     <div className="citations-list">
                       {hyp.citingEvidenceIds.map((citeId) => {
                         const cited = evidenceLog.find((e) => e.id === citeId);
+                        const isSuperseded = supersededEvidenceIds.has(citeId);
                         if (!cited) {
                           return (
                             <span key={citeId} className="citation-chip chip-unresolved">
@@ -294,7 +344,7 @@ export function ReassessmentResultsView({
                         return (
                           <div
                             key={citeId}
-                            className="citation-card"
+                            className={`citation-card ${isSuperseded ? 'citation-card-superseded' : ''}`}
                             onClick={() => onSelectRecommendation?.(cited.targetRecommendationId)}
                             role="button"
                             tabIndex={0}
@@ -312,6 +362,14 @@ export function ReassessmentResultsView({
                               <span className={`outcome-pill ${getOutcomeBadgeClass(cited.outcome)}`}>
                                 {getOutcomeLabel(cited.outcome)}
                               </span>
+                              {isSuperseded && (
+                                <span
+                                  className="citation-superseded-badge"
+                                  title={t.evidenceCitationSupersededHint}
+                                >
+                                  ({t.evidenceCitationSuperseded})
+                                </span>
+                              )}
                             </div>
                             {cited.numericValue !== undefined && cited.measurementUnit && (
                               <div className="citation-measurement" dir="ltr">
