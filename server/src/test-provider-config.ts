@@ -28,6 +28,7 @@ import {
   DiagnosisOutputLimitError,
   DIAGNOSTIC_SYSTEM_PROMPT,
   REASSESSMENT_SYSTEM_PROMPT,
+  buildReassessmentUserPrompt,
   setChatCompletionOverrideForTesting,
   META_API_BASE_URL,
   DEFAULT_MODEL,
@@ -965,7 +966,213 @@ ${JSON.stringify(MOCK_REASSESSMENT)}`;
     // Case 8.9: Prompt conciseness rules present in DIAGNOSTIC_SYSTEM_PROMPT and REASSESSMENT_SYSTEM_PROMPT
     assert(DIAGNOSTIC_SYSTEM_PROMPT.includes('at most 3 primary fault hypotheses'), 'DIAGNOSTIC_SYSTEM_PROMPT limits hypotheses to 3');
     assert(DIAGNOSTIC_SYSTEM_PROMPT.includes('at most 3 prioritized troubleshooting checks'), 'DIAGNOSTIC_SYSTEM_PROMPT limits checks to 3');
-    assert(REASSESSMENT_SYSTEM_PROMPT.includes('at most 3 next recommended checks'), 'REASSESSMENT_SYSTEM_PROMPT limits next checks to 3');
+    assert(REASSESSMENT_SYSTEM_PROMPT.includes('at most 2 focused next recommended checks'), 'REASSESSMENT_SYSTEM_PROMPT limits next checks to 2');
+
+    // -------------------------------------------------------------------------
+    // SECTION 9: Stage 5C-3K-2 Delta-Focused Reassessment Optimization Tests
+    // -------------------------------------------------------------------------
+    console.log('\n--- SECTION 9: Stage 5C-3K-2 Delta-Focused Reassessment Optimization ---');
+
+    // Case 9.1: Prompt efficiency - compacted initial context, duplicate instructions removed, reminders preserved
+    const multiRecordPayload: DiagnosisReassessmentRequest = {
+      diagnosticContext: {
+        boardName: 'Arduino Uno R3',
+        expectedBehavior: 'Board powers up, LEDs illuminate',
+        observedBehavior: 'Power LED fails to turn on',
+        initialSummary: 'Fault in 5V power supply or indicator LED circuit',
+        visibleObservations: [
+          {
+            description: 'D1 LED package intact',
+            evidence: 'Silkscreen D1 near pin 13',
+            confidence: 'high',
+          },
+        ],
+        initialHypotheses: [
+          {
+            title: 'LED reversed polarity',
+            reasoning: 'Extensive theoretical reasoning about semiconductor junctions and reverse bias blocking current flow...',
+            supportingEvidence: ['D1 orientation marker'],
+            confidence: 'medium',
+            suggestedVerification: 'Inspect cathode notch orientation',
+          },
+          {
+            title: 'Current-limiting resistor open',
+            reasoning: 'Extensive theoretical reasoning about thermal fatigue and SMD resistor micro-fracture mechanisms...',
+            supportingEvidence: ['R1 nearby'],
+            confidence: 'low',
+            suggestedVerification: 'Measure cold resistance across R1',
+          },
+          {
+            title: 'Microcontroller GPIO drive failure',
+            reasoning: 'Extensive theoretical reasoning about internal FET latch-up and ESD damage on ATmega328P I/O pin...',
+            supportingEvidence: ['Pin 13 connection'],
+            confidence: 'medium',
+            suggestedVerification: 'Measure GPIO pin voltage under test sketch',
+          },
+        ],
+      },
+      evidence: [
+        {
+          id: 'ev-1',
+          targetRecommendationId: 'rec-c0-s1',
+          cycleIndex: 0,
+          stepNumber: 1,
+          checkTitle: 'Visual polarity and seating check',
+          outcome: 'passed',
+          technicianNotes: 'Cathode notch correctly aligned to GND trace.',
+          recordedAt: '2026-10-30T10:00:00Z',
+        },
+        {
+          id: 'ev-2',
+          targetRecommendationId: 'rec-c0-s2',
+          cycleIndex: 0,
+          stepNumber: 2,
+          checkTitle: 'Cold resistance and LED diode check',
+          outcome: 'passed',
+          numericValue: 1.82,
+          measurementUnit: 'V',
+          technicianNotes: 'Diode forward drop measured 1.82V, nominal for green LED.',
+          recordedAt: '2026-10-30T10:05:00Z',
+        },
+        {
+          id: 'ev-3',
+          targetRecommendationId: 'rec-c0-s3',
+          cycleIndex: 0,
+          stepNumber: 3,
+          checkTitle: 'Powered pin drive and LED voltage verification',
+          outcome: 'failed',
+          numericValue: 0.04,
+          measurementUnit: 'V',
+          technicianNotes: 'Pin 13 measured 0.04V during toggle cycle. Expected 5.0V.',
+          recordedAt: '2026-10-30T10:10:00Z',
+        },
+      ],
+      additionalTechnicianNotes: 'Board executes delay loop but GPIO output pin stays at GND.',
+    };
+
+    const optimizedPrompt = buildReassessmentUserPrompt(multiRecordPayload);
+
+    // Verify prompt compactness and deduplication
+    assert(
+      !optimizedPrompt.includes('Extensive theoretical reasoning about semiconductor junctions'),
+      'Omitted verbose initial hypothesis reasoning from user prompt'
+    );
+    assert(
+      !optimizedPrompt.includes('=== CRITICAL REASSESSMENT INSTRUCTIONS ==='),
+      'Removed duplicated 8-point instruction block from user prompt'
+    );
+    assert(
+      optimizedPrompt.includes('Reminder: You have NOT performed a new visual inspection'),
+      'Retained visual inspection constraint reminder in user prompt'
+    );
+    assert(
+      optimizedPrompt.includes('Initial Verification Target: Inspect cathode notch orientation'),
+      'Preserved concise hypothesis verification target'
+    );
+
+    // Case 9.2: Multi-record evidence preservation & traceability
+    assert(optimizedPrompt.includes('Evidence ID: ev-1'), 'Prompt includes Evidence ID ev-1');
+    assert(optimizedPrompt.includes('Evidence ID: ev-2'), 'Prompt includes Evidence ID ev-2');
+    assert(optimizedPrompt.includes('Evidence ID: ev-3'), 'Prompt includes Evidence ID ev-3');
+    assert(optimizedPrompt.includes('1.82 V'), 'Prompt preserves exact numeric value and unit for ev-2');
+    assert(optimizedPrompt.includes('0.04 V'), 'Prompt preserves exact numeric value and unit for ev-3');
+    assert(optimizedPrompt.includes('Pin 13 measured 0.04V'), 'Prompt preserves technician notes');
+
+    // Case 9.3: Concise delta-based reassessment output validation
+    const conciseReassessmentResponse = {
+      summary: 'Physical checks rule out LED diode fault and confirm failure of GPIO pin 13 drive voltage.',
+      evidenceSynthesis: 'Evidence ev-1 and ev-2 establish LED polarity and diode junction are intact. Evidence ev-3 demonstrates GPIO pin 13 outputs 0.04V instead of 5.0V, shifting focus to ATmega328P output driver.',
+      revisedHypotheses: [
+        {
+          title: 'LED reversed polarity',
+          status: 'contradicted' as const,
+          confidence: 'high' as const,
+          explanationOfChange: 'Visual polarity inspection ev-1 showed cathode notch correctly aligned with ground trace.',
+          citingEvidenceIds: ['ev-1'],
+        },
+        {
+          title: 'Current-limiting resistor open',
+          status: 'weakened' as const,
+          confidence: 'medium' as const,
+          explanationOfChange: 'Diode test ev-2 confirmed continuity through circuit branch with 1.82V forward drop.',
+          citingEvidenceIds: ['ev-2'],
+        },
+        {
+          title: 'Microcontroller GPIO drive failure',
+          status: 'supported' as const,
+          confidence: 'high' as const,
+          explanationOfChange: 'Pin 13 voltage measured 0.04V under active drive condition in check ev-3.',
+          citingEvidenceIds: ['ev-3'],
+          suggestedVerification: 'Probe ATmega328P pin 19 directly at IC package to rule out PCB trace break between IC and header.',
+        },
+      ],
+      nextRecommendedChecks: [
+        {
+          stepNumber: 1,
+          title: 'Probe ATmega328P pin 19 directly',
+          testType: 'Voltage Measurement',
+          toolsNeeded: ['Multimeter', 'Fine-pitch probe'],
+          procedure: 'Power board via USB. Probe pin 19 directly on ATmega328P IC package.',
+          expectedResult: 'Toggling voltage between 0V and 5V',
+          safetyNotes: ['Avoid bridging adjacent IC pins with multimeter probe.'],
+        },
+        {
+          stepNumber: 2,
+          title: 'Cold continuity check on Pin 13 net',
+          testType: 'Continuity',
+          toolsNeeded: ['Multimeter'],
+          procedure: 'Disconnect USB power. Measure continuity from ATmega328P pin 19 to D13 header.',
+          expectedResult: '< 1 Ω',
+          safetyNotes: ['Ensure board is completely unpowered before continuity test.'],
+        },
+      ],
+      safetyWarnings: [
+        'Avoid shorting adjacent microcontroller pins when probing energized IC terminals.',
+      ],
+      limitations: [
+        'Internal ATmega328P silicon damage cannot be confirmed without desoldering or IC substitution.',
+      ],
+    };
+
+    const submittedIds = new Set(['ev-1', 'ev-2', 'ev-3']);
+    const validatedConcise = parseReassessmentJson(JSON.stringify(conciseReassessmentResponse), submittedIds);
+
+    assert(validatedConcise.summary === conciseReassessmentResponse.summary, 'Summary validated successfully');
+    assert(validatedConcise.revisedHypotheses.length === 3, 'All 3 hypotheses represented in concise response');
+    assert(validatedConcise.revisedHypotheses[0].suggestedVerification === undefined, 'Contradicted hypothesis omits suggestedVerification');
+    assert(validatedConcise.revisedHypotheses[1].suggestedVerification === undefined, 'Weakened hypothesis omits suggestedVerification');
+    assert(Boolean(validatedConcise.revisedHypotheses[2].suggestedVerification), 'Unresolved/supported hypothesis retains targeted suggestedVerification');
+    assert(validatedConcise.nextRecommendedChecks.length === 2, 'Next checks bounded to 2');
+    assert(validatedConcise.safetyWarnings.length === 1, 'Mandatory safety warning preserved');
+
+    // Case 9.4: Evidence citation enforcement in concise reassessment
+    let fabricatedCitationThrew = false;
+    try {
+      const invalidCitation = {
+        ...conciseReassessmentResponse,
+        revisedHypotheses: [
+          {
+            ...conciseReassessmentResponse.revisedHypotheses[0],
+            citingEvidenceIds: ['ev-fabricated-999'],
+          },
+        ],
+      };
+      parseReassessmentJson(JSON.stringify(invalidCitation), submittedIds);
+    } catch (err) {
+      fabricatedCitationThrew = true;
+      assert((err as Error).message.includes('ev-fabricated-999'), 'Rejects unknown evidence citation in concise format');
+    }
+    assert(fabricatedCitationThrew, 'Strict citation validation preserved under concise format');
+
+    // Case 9.5: System prompt instructions and limits
+    assert(REASSESSMENT_SYSTEM_PROMPT.includes('1 to 2 concise sentences'), 'System prompt specifies 1-2 sentences for summary');
+    assert(REASSESSMENT_SYSTEM_PROMPT.includes('2 to 3 concise sentences'), 'System prompt specifies 2-3 sentences for evidenceSynthesis');
+    assert(REASSESSMENT_SYSTEM_PROMPT.includes('Only provide "suggestedVerification" when a hypothesis remains "unresolved"'), 'System prompt restricts verification generation');
+    assert(REASSESSMENT_SYSTEM_PROMPT.includes('Provide at most 2 focused next recommended checks'), 'System prompt limits next checks to 2');
+
+    // Case 9.6: Image diagnosis prompt independence
+    assert(DIAGNOSTIC_SYSTEM_PROMPT.includes('at most 3 primary fault hypotheses'), 'DIAGNOSTIC_SYSTEM_PROMPT completely untouched');
+    assert(!DIAGNOSTIC_SYSTEM_PROMPT.includes('at most 2 focused next recommended checks'), 'Reassessment changes strictly isolated from image diagnosis');
   } finally {
     if (server) {
       (server as Server).close();

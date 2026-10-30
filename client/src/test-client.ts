@@ -804,4 +804,44 @@ describe('CircuitLens Stage 5C-3G: Output Limits, Completion Metadata & Error No
 
     assert.strictEqual(isValidReassessmentResponse(reassessmentWithMetadata), true);
   });
+
+  it('isValidReassessmentResponse accepts concise delta responses with optional suggestedVerification', () => {
+    const conciseDeltaResponse = {
+      summary: 'Physical checks confirm short on 3.3V rail and eliminate polarity error.',
+      evidenceSynthesis: 'Evidence ev-1 and ev-2 rule out diode orientation issues. Evidence ev-3 measures 0.8 ohms on 3.3V bus, confirming low-impedance short.',
+      revisedHypotheses: [
+        {
+          title: 'Diode reverse polarity',
+          status: 'contradicted' as const,
+          confidence: 'high' as const,
+          explanationOfChange: 'Visual polarity check ev-1 showed cathode correctly oriented.',
+          citingEvidenceIds: ['ev-1'],
+          // suggestedVerification omitted for contradicted hypothesis
+        },
+        {
+          title: '3.3V rail short circuit',
+          status: 'supported' as const,
+          confidence: 'high' as const,
+          explanationOfChange: 'Resistance check ev-3 measured 0.8 ohms across 3.3V net.',
+          citingEvidenceIds: ['ev-3'],
+          suggestedVerification: 'Isolate decoupling capacitors individually with hot air.',
+        },
+      ],
+      nextRecommendedChecks: [
+        {
+          stepNumber: 1,
+          title: 'Isolate C12',
+          testType: 'Component Isolation',
+          toolsNeeded: ['Hot air rework station'],
+          procedure: 'Desolder C12. Re-measure 3.3V rail cold resistance.',
+          expectedResult: '> 10 kΩ',
+          safetyNotes: ['Allow board to cool before handling.'],
+        },
+      ],
+      safetyWarnings: ['Do not energize circuit while 3.3V rail remains shorted to ground.'],
+      limitations: ['Inner PCB copper layers cannot be visually inspected.'],
+    };
+
+    assert.strictEqual(isValidReassessmentResponse(conciseDeltaResponse), true);
+  });
 });
