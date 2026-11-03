@@ -14,8 +14,9 @@
     "test:reassessment-validation": "tsx src/test-reassessment-validation.ts",
     "test:reassessment-endpoint": "tsx src/test-reassessment-endpoint.ts",
     "test:reassessment-scenarios": "tsx src/test-reassessment-scenarios.ts",
+    "test:assistant": "tsx src/test-assistant.ts",
     "test:provider": "tsx src/test-provider-config.ts",
-    "test": "npm run test:provider && npm run test:validation && npm run test:endpoint && npm run test:reassessment-validation && npm run test:reassessment-endpoint && npm run test:reassessment-scenarios"
+    "test": "npm run test:provider && npm run test:validation && npm run test:endpoint && npm run test:reassessment-validation && npm run test:reassessment-endpoint && npm run test:reassessment-scenarios && npm run test:assistant"
   },
   "dependencies": {
     "cors": "^2.8.5",

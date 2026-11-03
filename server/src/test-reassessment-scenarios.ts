@@ -1113,6 +1113,55 @@ async function runScenarioTests() {
       'Adversarial H.1: Legitimate technician-attributed engineering statements are accepted without false rejection'
     );
 
+    // Adversarial I: Diagnostic Language & Incomplete Measurement Evidence
+    console.log('\n[Adversarial I] Diagnostic language guidance & empirical measurement vs root cause');
+    assert(
+      REASSESSMENT_SYSTEM_PROMPT.includes('EMPIRICAL MEASUREMENTS VS. PHYSICAL ROOT CAUSE'),
+      'Adversarial I.1: System prompt mandates empirical measurement distinction vs physical root cause'
+    );
+    assert(
+      REASSESSMENT_SYSTEM_PROMPT.includes('account for the populated board: parallel loads'),
+      'Adversarial I.2: System prompt requires accounting for populated board and parallel loads'
+    );
+    assert(
+      REASSESSMENT_SYSTEM_PROMPT.includes('specific component-level fault locations remain strictly unresolved until physical isolation evidence'),
+      'Adversarial I.3: System prompt mandates component-level faults remain unresolved without isolation evidence'
+    );
+
+    // Test that cautious empirical wording on populated board passes schema validation
+    const cautiousPopulatedBoardResponse = {
+      summary: 'The technician measured 2.1 Ω between 5V and GND, indicating severe low impedance on the populated rail consistent with an overload or short circuit.',
+      evidenceSynthesis: 'A 2.1 Ω cold resistance measurement on the populated 5V rail indicates abnormally low impedance; however, because bypass capacitors, the linear regulator, and ICs share the net, specific component-level location remains unresolved without isolation testing.',
+      revisedHypotheses: [
+        {
+          title: '5V Rail Low-Impedance Fault',
+          status: 'supported' as const,
+          confidence: 'high' as const,
+          explanationOfChange: 'The technician-measured 2.1 Ω resistance supports severe low-impedance loading on the 5V rail; specific root-cause component remains unisolated.',
+          citingEvidenceIds: ['ev-1'],
+        },
+      ],
+      nextRecommendedChecks: [
+        {
+          stepNumber: 1,
+          title: 'Isolate regulator output pin',
+          testType: 'Component Isolation',
+          toolsNeeded: ['Soldering iron', 'Multimeter'],
+          procedure: 'Lift regulator output pin to decouple regulator from downstream rail.',
+          expectedResult: 'Rail resistance increases to > 1 kΩ if short is in regulator.',
+          safetyNotes: ['Ensure board is unpowered.'],
+        },
+      ],
+      safetyWarnings: ['Do not power the board while low rail resistance persists.'],
+      limitations: ['Component-level isolation has not been performed; parallel loads cannot be distinguished.'],
+    };
+    const validatedCautious = validateReassessmentResponse(cautiousPopulatedBoardResponse, validEvidenceIds);
+    assert(
+      validatedCautious.summary.includes('indicating severe low impedance') &&
+        validatedCautious.limitations[0].includes('Component-level isolation has not been performed'),
+      'Adversarial I.4: Cautious empirical statements accounting for populated boards and unisolated components pass validation'
+    );
+
   } finally {
     // Teardown ephemeral server cleanly
     await new Promise<void>((resolve, reject) => {

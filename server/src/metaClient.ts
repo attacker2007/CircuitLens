@@ -17,6 +17,10 @@ import {
   ReassessmentParsingError,
   ReassessmentRequestValidationError,
 } from './reassessmentValidation.js';
+import {
+  calculateCostEstimate,
+  deriveUsageStatus,
+} from './pricing.js';
 
 export const META_API_BASE_URL = 'https://api.meta.ai/v1';
 export const DEFAULT_MODEL = 'muse-spark-1.3';
@@ -25,6 +29,57 @@ export const BASETEN_DEFAULT_MODEL = 'meta-models/muse-spark-open-1026';
 export const DEFAULT_REQUEST_TIMEOUT_MS = 75000;
 export const MIN_REQUEST_TIMEOUT_MS = 5000;
 export const MAX_REQUEST_TIMEOUT_MS = 300000;
+
+/**
+ * Completion token allowances per operational mode.
+ * - Diagnosis maintains the established 3,500-token limit for image-based assessment.
+ * - Reassessment uses a dedicated 6,000-token allowance to accommodate reasoning-model
+ *   internal traces alongside evidence synthesis, cautious status mapping, and JSON formatting.
+ * - Test prompt uses a minimal 500-token allowance.
+ */
+export const DEFAULT_DIAGNOSIS_MAX_TOKENS = 3500;
+export const DEFAULT_REASSESSMENT_MAX_TOKENS = 6000;
+export const DEFAULT_TEST_PROMPT_MAX_TOKENS = 500;
+
+export const DIAGNOSIS_MAX_TOKENS = DEFAULT_DIAGNOSIS_MAX_TOKENS;
+export const REASSESSMENT_MAX_TOKENS = DEFAULT_REASSESSMENT_MAX_TOKENS;
+export const TEST_PROMPT_MAX_TOKENS = DEFAULT_TEST_PROMPT_MAX_TOKENS;
+
+/**
+ * Resolves the diagnosis maximum completion token limit.
+ * Reads optional DIAGNOSIS_MAX_TOKENS env var or returns default (3,500).
+ */
+export function resolveDiagnosisMaxTokens(): number {
+  const envVal = process.env.DIAGNOSIS_MAX_TOKENS;
+  if (!envVal || envVal.trim() === '') {
+    return DEFAULT_DIAGNOSIS_MAX_TOKENS;
+  }
+  const parsed = Number(envVal.trim());
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 500 || parsed > 32000) {
+    throw new ConfigurationError(
+      `Invalid DIAGNOSIS_MAX_TOKENS: "${envVal}". Must be an integer between 500 and 32000.`
+    );
+  }
+  return parsed;
+}
+
+/**
+ * Resolves the reassessment maximum completion token limit.
+ * Reads optional REASSESSMENT_MAX_TOKENS env var or returns default (6,000).
+ */
+export function resolveReassessmentMaxTokens(): number {
+  const envVal = process.env.REASSESSMENT_MAX_TOKENS;
+  if (!envVal || envVal.trim() === '') {
+    return DEFAULT_REASSESSMENT_MAX_TOKENS;
+  }
+  const parsed = Number(envVal.trim());
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 500 || parsed > 32000) {
+    throw new ConfigurationError(
+      `Invalid REASSESSMENT_MAX_TOKENS: "${envVal}". Must be an integer between 500 and 32000.`
+    );
+  }
+  return parsed;
+}
 
 /**
  * Resolves the model request timeout in milliseconds from MODEL_TIMEOUT_MS or returns default (75,000 ms).
@@ -500,6 +555,7 @@ export async function analyzeCircuitImage(
   }
 
   const { client, config } = createApiClient();
+  const maxTokens = resolveDiagnosisMaxTokens();
   const startTime = Date.now();
 
   const completion = chatCompletionOverride
@@ -526,7 +582,7 @@ export async function analyzeCircuitImage(
             ],
           },
         ],
-        max_tokens: 3500,
+        max_tokens: maxTokens,
         temperature: 0.2,
         response_format: { type: 'json_object' },
       })) as OpenAI.ChatCompletion)
@@ -554,7 +610,7 @@ export async function analyzeCircuitImage(
               ],
             },
           ],
-          max_tokens: 3500,
+          max_tokens: maxTokens,
           temperature: 0.2,
           response_format: { type: 'json_object' },
         },
@@ -579,21 +635,33 @@ export async function analyzeCircuitImage(
 
   if (finishReason === 'length') {
     throw new DiagnosisOutputLimitError(
-      `Model output reached the maximum completion token limit (${completionTokens ?? 3500} tokens) before completing the diagnostic assessment.`,
+      `Model output reached the maximum completion token limit (${completionTokens ?? maxTokens} tokens) before completing the diagnostic assessment.`,
       completionTokens,
-      3500
+      maxTokens
     );
   }
 
   const rawContent = extractMessageContent(choice);
   const diagnosis = parseDiagnosisJson(rawContent);
 
+  const validPrompt = typeof promptTokens === 'number' && Number.isFinite(promptTokens) ? promptTokens : undefined;
+  const validCompletion = typeof completionTokens === 'number' && Number.isFinite(completionTokens) ? completionTokens : undefined;
+  const validTotal = typeof totalTokens === 'number' && Number.isFinite(totalTokens) ? totalTokens : undefined;
+
+  const costEstimate = calculateCostEstimate(config.provider, config.model, validPrompt, validCompletion);
+
   diagnosis.metadata = {
-    promptTokens,
-    completionTokens,
-    totalTokens,
+    requestType: 'diagnosis',
+    provider: config.provider,
+    model: config.model,
+    promptTokens: validPrompt,
+    completionTokens: validCompletion,
+    totalTokens: validTotal,
     finishReason: finishReason ?? undefined,
     durationMs,
+    estimatedCostUsd: costEstimate.estimatedCostUsd,
+    partialCostUsd: costEstimate.partialCostUsd,
+    usageStatus: deriveUsageStatus(validPrompt, validCompletion),
   };
 
   return diagnosis;
@@ -627,7 +695,12 @@ CRITICAL ELECTRICAL SAFETY & REASSESSMENT RULES:
      * "contradicted": Physical test results directly conflict with the necessary conditions for this fault.
    - NEVER label any hypothesis as "confirmed", "proven", "verified", or "refuted", whether in the status field, hypothesis title, explanationOfChange, summary, or any other response field.
    - Do NOT claim absolute certainty or independent physical confirmation.
-   - Do NOT use pseudo-confirmation titles or prose to bypass structured hypothesis status restrictions (e.g. do not rename an initial hypothesis to include "Confirmed Defect").
+   - Do NOT use pseudo-confirmation titles or prose to bypass structured hypothesis status restrictions (e.g. do not rename an initial hypothesis to include "Confirmed Defect", and do not declare that a measurement "establishes", "proves", or "physically confirms" a fault).
+   - EMPIRICAL MEASUREMENTS VS. PHYSICAL ROOT CAUSE:
+     * Describe low resistance or abnormal voltage as an empirical measurement indicating abnormally low impedance or severe overload consistent with a fault, NOT an unconditionally established or physically confirmed short circuit.
+     * Electrical interpretation must account for the populated board: parallel loads, bypass capacitors, and semiconductor junctions sharing a rail contribute to common-node measurements.
+     * Measurement conditions and repeatability matter: explicitly account for probe contact quality, flux residue, and meter calibration.
+     * Distinguish strong correlative evidence from physical root cause: specific component-level fault locations remain strictly unresolved until physical isolation evidence (e.g. lifted pin, desoldered part, trace isolation) is provided.
    - Preserve the identity of initial hypotheses unless a refinement is genuinely justified by the evidence.
 5. RIGOROUS EVIDENCE CITATION:
    - Every revised hypothesis must include "citingEvidenceIds", which MUST contain ONLY the exact Evidence Record IDs provided in the user prompt that directly justify the status change.
@@ -656,7 +729,8 @@ CRITICAL ELECTRICAL SAFETY & REASSESSMENT RULES:
      * Retain relevant tools and safety notes.
      * Do not recommend checks that have already been completed successfully unless further verification is genuinely necessary.
    - "limitations": At most 2 relevant remaining limitations regarding unprobed nets, remaining uncertainties, or technician reporting limits.
-9. STRICT JSON OUTPUT:
+9. DIRECT EXECUTION & STRICT JSON OUTPUT:
+   - Proceed directly to technical evaluation; do NOT produce conversational preambles, discursive internal deliberation, or hidden scratchpad monologue.
    - Return ONLY a single valid JSON object strictly complying with the schema below.
    - Do NOT wrap with markdown code fences (no \`\`\`json).
    - Do NOT output any conversational text outside the JSON object.
@@ -770,7 +844,7 @@ export function buildReassessmentUserPrompt(request: DiagnosisReassessmentReques
 
   lines.push(
     '',
-    'Reminder: You have NOT performed a new visual inspection or physical hardware tests. You are a remote analytical assistant without direct hardware access. All measurements were conducted by the technician. Re-evaluate all prior hypotheses against the evidence records above, cite justifying evidence IDs for non-unresolved hypotheses, and return your concise reassessment JSON strictly complying with the system prompt schema.'
+    'Reminder: You have NOT performed a new visual inspection or physical hardware tests. You are a remote analytical assistant without direct hardware access. All measurements were conducted by the technician. Re-evaluate all prior hypotheses against the evidence records above, cite justifying evidence IDs for non-unresolved hypotheses, and return your concise reassessment JSON directly without unconstrained reasoning traces, strictly complying with the system prompt schema.'
   );
 
   return lines.join('\n');
@@ -800,6 +874,7 @@ export async function reassessCircuitEvidence(
   }
 
   const { client, config } = createApiClient();
+  const maxTokens = resolveReassessmentMaxTokens();
   const startTime = Date.now();
 
   const completion = chatCompletionOverride
@@ -815,7 +890,7 @@ export async function reassessCircuitEvidence(
             content: buildReassessmentUserPrompt(request),
           },
         ],
-        max_tokens: 3500,
+        max_tokens: maxTokens,
         temperature: 0.2,
         response_format: { type: 'json_object' },
       })) as OpenAI.ChatCompletion)
@@ -832,7 +907,7 @@ export async function reassessCircuitEvidence(
               content: buildReassessmentUserPrompt(request),
             },
           ],
-          max_tokens: 3500,
+          max_tokens: maxTokens,
           temperature: 0.2,
           response_format: { type: 'json_object' },
         },
@@ -857,9 +932,9 @@ export async function reassessCircuitEvidence(
 
   if (finishReason === 'length') {
     throw new DiagnosisOutputLimitError(
-      `Model output reached the maximum completion token limit (${completionTokens ?? 3500} tokens) before completing the reassessment.`,
+      `Model output reached the maximum completion token limit (${completionTokens ?? maxTokens} tokens) before completing the reassessment.`,
       completionTokens,
-      3500
+      maxTokens
     );
   }
 
@@ -867,12 +942,24 @@ export async function reassessCircuitEvidence(
   const submittedEvidenceIds = new Set(request.evidence.map((e) => e.id));
   const reassessment = parseReassessmentJson(rawContent, submittedEvidenceIds);
 
+  const validPrompt = typeof promptTokens === 'number' && Number.isFinite(promptTokens) ? promptTokens : undefined;
+  const validCompletion = typeof completionTokens === 'number' && Number.isFinite(completionTokens) ? completionTokens : undefined;
+  const validTotal = typeof totalTokens === 'number' && Number.isFinite(totalTokens) ? totalTokens : undefined;
+
+  const costEstimate = calculateCostEstimate(config.provider, config.model, validPrompt, validCompletion);
+
   reassessment.metadata = {
-    promptTokens,
-    completionTokens,
-    totalTokens,
+    requestType: 'reassessment',
+    provider: config.provider,
+    model: config.model,
+    promptTokens: validPrompt,
+    completionTokens: validCompletion,
+    totalTokens: validTotal,
     finishReason: finishReason ?? undefined,
     durationMs,
+    estimatedCostUsd: costEstimate.estimatedCostUsd,
+    partialCostUsd: costEstimate.partialCostUsd,
+    usageStatus: deriveUsageStatus(validPrompt, validCompletion),
   };
 
   return reassessment;

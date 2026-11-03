@@ -13,6 +13,8 @@ import {
 } from './metaClient.js';
 import { validateDiagnosisRequest } from './diagnosisRequestValidation.js';
 import { validateReassessmentRequest } from './reassessmentValidation.js';
+import { validateAssistantRequest, AssistantValidationError } from './assistantValidation.js';
+import { generateAssistantResponse } from './assistantEngine.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '4000', 10);
@@ -201,6 +203,60 @@ app.post('/api/reassess', async (req: Request, res: Response) => {
   }
 });
 
+// POST endpoint for contextual investigation assistant discussion
+app.post('/api/assistant/chat', async (req: Request, res: Response) => {
+  const abortController = new AbortController();
+
+  const onResClose = () => {
+    if (!res.writableEnded) {
+      abortController.abort();
+    }
+  };
+
+  res.on('close', onResClose);
+
+  try {
+    // 1. Authoritative server-side validation & sanitization
+    const validatedRequest = validateAssistantRequest(req.body);
+
+    // 2. Generate deterministic investigation-scoped response (offline preview mode)
+    const assistantResponse = generateAssistantResponse(validatedRequest);
+
+    if (!res.headersSent && !res.writableEnded) {
+      res.json(assistantResponse);
+    }
+  } catch (error) {
+    if (res.headersSent || res.writableEnded) {
+      return;
+    }
+    if (abortController.signal.aborted) {
+      res.status(499).json({
+        success: false,
+        errorType: 'CLIENT_CLOSED_REQUEST',
+        message: 'Assistant request was cancelled before completion.',
+      });
+      return;
+    }
+    if (error instanceof AssistantValidationError) {
+      res.status(error.statusCode).json({
+        success: false,
+        errorType: error.errorType,
+        message: error.message,
+      });
+      return;
+    }
+    const normalized = handleApiError(error);
+    console.error(`[Assistant Error] [${normalized.errorType}] HTTP ${normalized.statusCode}: ${normalized.message}`);
+    res.status(normalized.statusCode).json({
+      success: false,
+      errorType: normalized.errorType,
+      message: normalized.message,
+    });
+  } finally {
+    res.off('close', onResClose);
+  }
+});
+
 // Global error-handling middleware for JSON body parsing errors (400, 413) and unexpected pipeline failures
 app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
   if (res.headersSent) {
@@ -272,6 +328,7 @@ if (isDirectRun) {
     console.log(`- Model Test (POST):POST http://localhost:${PORT}/api/test-meta`);
     console.log(`- Circuit Diagnose: POST http://localhost:${PORT}/api/diagnose`);
     console.log(`- Reassessment:     POST http://localhost:${PORT}/api/reassess`);
+    console.log(`- Assistant Chat:   POST http://localhost:${PORT}/api/assistant/chat`);
     console.log(`- Active Provider:  ${activeConfig.provider}`);
     console.log(`- Target Model:     ${activeConfig.model}`);
     console.log(`- Base URL:         ${activeConfig.baseUrl}`);

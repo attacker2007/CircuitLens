@@ -1,317 +1,317 @@
 # CircuitLens ⚡
 
-> Mobile-friendly, AI-assisted electronics troubleshooting & circuit diagnosis application built for the Meta Global AI Developer Hackathon.
+> An evidence-driven, AI-assisted electronics troubleshooting workbench built for the Meta Global AI Developer Hackathon.
+
+CircuitLens bridges the gap between multimodal visual analysis and physical bench instrumentation. It transforms circuit board photographs, operational symptom reports, and multimeter/oscilloscope readings into structured, safety-prioritized troubleshooting workflows—strictly enforcing epistemic humility and preventing false confirmation of faults.
 
 ---
 
-## 1. Project Purpose & Target Users
+## 1. Project Overview
 
-Troubleshooting printed circuit boards (PCBs) is often tedious, slow, and prone to diagnostic blind spots and confirmation bias. **CircuitLens** assists electronics engineers, bench technicians, hardware makers, and electrical engineering students by converting high-resolution visual PCB inspection and operational symptom reports into structured, actionable, and safety-prioritized troubleshooting procedures.
+Troubleshooting modern printed circuit boards (PCBs) is challenging, prone to diagnostic blind spots, and susceptible to confirmation bias. When visual anomalies appear—such as flux residue, package discoloration, or tilted passives—technicians frequently jump to premature conclusions, desoldering healthy components while missing the true root cause.
 
-Modern multimodal AI models can identify visual defects, but naive chat implementations suffer from severe diagnostic drift—hallucinating that an unproven hypothesis is "confirmed" or claiming they re-examined an image when only measurements were provided. CircuitLens eliminates this through a disciplined **dual-cycle investigation architecture**:
-1. **Initial Multimodal Diagnosis:** Analyzes visual board landmarks and reported operational symptoms to propose candidate hypotheses and prioritized, non-destructive safety checks.
-2. **Physical Evidence Ledger & Reassessment:** Technicians execute bench tests with multimeters or oscilloscopes and log empirical readings. The system re-evaluates hypotheses against this accumulated evidence ledger—strictly forbidding the model from claiming image re-inspection and requiring rigorous evidence citations for every status shift.
+Generic multimodal AI chat tools worsen this problem through **diagnostic drift**:
+- They treat visual inferences as confirmed physical facts.
+- They falsely claim to "re-inspect" photos when only electrical numbers are provided.
+- They misinterpret low resistance across populated power rails as dead component shorts, ignoring parallel bypass capacitors and semiconductor protection diodes.
+
+**CircuitLens** resolves this through an **evidence-driven dual-cycle architecture**:
+1. **Initial Multimodal Intake:** Evaluates high-resolution PCB imagery against reported symptoms to generate candidate fault hypotheses, visible optical observations, and non-destructive cold checks.
+2. **Physical Bench Evidence Ledger & Reassessment:** Technicians execute hands-on bench tests and log empirical measurements. CircuitLens re-evaluates hypotheses against this accumulated evidence ledger—requiring explicit citations for every status revision and prohibiting the model from claiming physical confirmation.
 
 ---
 
-## 2. System Architecture & Dual-Cycle Workflow
+## 2. Key Features
+
+- **Circuit Image Intake & Multimodal Diagnosis:**
+  High-resolution image intake (JPEG, PNG, WebP) with client-side downscaling (max 1800 px) to preserve silkscreen legibility while guarding upload bandwidth.
+- **Strict Separation of Observations vs. Hypotheses:**
+  - `visibleObservations`: Factual optical landmarks directly visible in the image (e.g. silkscreen labels, solder joints, physical burn marks).
+  - `hypotheses`: Deductive potential failure mechanisms connecting visual observations to symptoms. Never labeled as confirmed without electrical isolation.
+- **Structured Technician Evidence Logging:**
+  Technicians log discrete check outcomes (`passed`, `failed`, `inconclusive`, `unable_to_perform`), physical values with engineering units (e.g. `2.1 Ω`, `4.85 V`), and probe notes.
+- **Evidence-Driven Reassessment & Hypothesis Evolution:**
+  Subsequent diagnostic cycles update candidate hypotheses using four cautious statuses: `supported`, `weakened`, `unresolved`, or `contradicted`. Hypotheses must cite specific evidence record IDs (`citingEvidenceIds`).
+- **Interactive Hypothesis Evolution Matrix & Evidence Timeline:**
+  Visual progression tracking showing exactly how each candidate hypothesis transitioned across diagnostic cycles, alongside a chronological audit timeline.
+- **Circuit Image Inspector:**
+  Interactive image viewing tool with pan and zoom controls, allowing technicians to inspect component packages and solder fillets alongside diagnostic recommendations.
+- **Contextual Investigation Assistant:**
+  An investigation-scoped discussion drawer where technicians can ask technical questions about active hypotheses, measurement interpretations (e.g. populated board parallel paths), and next checks. Includes structured XML context encapsulation and Offline Preview provenance labelling.
+- **Local-First Investigation Workspace (IndexedDB):**
+  Full multi-investigation management with automatic saving, case renaming, archiving, and deletion with tombstoning protection. Zero cloud accounts, cookies, or external databases required.
+- **Professional Multi-Format Export:**
+  - **Print / PDF:** Clean, professional printable stylesheet formatted for bench handoff and hardware archiving.
+  - **Markdown:** Structured text export for technical wikis and issue trackers.
+  - **JSON:** Fully structured telemetry and case records complying with **CircuitLens Schema v1.1.0**.
+- **Full Internationalization (i18n):**
+  Native multilingual interface supporting English (EN), Spanish (ES), and Arabic (AR) with complete right-to-left (RTL) layout switching.
+- **Mobile Responsive:**
+  Adaptive layouts down to 320px viewports with a dedicated Mobile Bottom Action Dock for bench technicians holding smartphones.
+
+---
+
+## 3. How It Works
 
 ```
-+-----------------------------------------------------------------------------------+
-|                                CIRCUITLENS CLIENT                                 |
-|                         (React 19 + TypeScript + Vite)                            |
-+-----------------------------------------------------------------------------------+
-       |                                                               |
-  [1] Multimodal Intake                                           [3] Bench Evidence
-  (Photo + Expected vs. Observed)                                 (Multimeter readings)
-       |                                                               |
-       v                                                               v
-+------------------------------------+               +------------------------------+
-|       POST /api/diagnose           |               |      POST /api/reassess      |
-|  - Validates MIME & Magic Bytes    |               |  - Validates Evidence Ledger |
-|  - Enforces <= 10 MiB limits       |               |  - Validates Citations       |
-|  - Sanitizes user symptom inputs   |               |  - Zero raw image re-send    |
-+------------------------------------+               +------------------------------+
-       |                                                               |
-       | (OpenAI-compatible vision)                                    | (Structured text context)
-       v                                                               v
-+-----------------------------------------------------------------------------------+
-|                     MODEL PROVIDER (CONFIGURABLE VIA .ENV)                        |
-|  - Meta Model API (default): https://api.meta.ai/v1      (Model: muse-spark-1.3)  |
-|  - Baseten:                  https://inference.baseten.co/v1 (muse-spark-open-1026) |
-+-----------------------------------------------------------------------------------+
-       |                                                               |
-       | Raw JSON Completion                                           | Raw JSON Completion
-       v                                                               v
-+------------------------------------+               +------------------------------+
-|     Diagnosis Response Parser      |               |    Reassessment Parser       |
-|  - Strips markdown code fences     |               |  - Strips markdown fences    |
-|  - Validates Observations & Hypo   |               |  - Validates Cautious Status |
-|  - Enforces Step Sequencing        |               |  - Checks Evidence Citations |
-|  - Enforces Safety Warnings        |               |  - Mandates Safety Warnings  |
-+------------------------------------+               +------------------------------+
-       |                                                               |
-       v                                                               v
-  [2] Diagnostic Results View                                     [4] Revised Hypotheses View
-  - Direct Optical Observations                                   - Hypothesis Status Updates
-  - Deductive Fault Hypotheses                                    - Cited Bench Evidence
-  - Prioritized Check Sequence                                    - Follow-up Diagnostic Steps
+                                 THE CIRCUITLENS WORKFLOW
+
+  [1] Circuit Image + Symptoms
+               │
+               ▼
+  [2] Optical Observations & Candidate Hypotheses (Round 0)
+               │
+               ▼
+  [3] Safe, Non-Destructive Recommended Checks
+               │
+               ▼
+  [4] Technician Bench Measurements (DMM, Scope, Thermal)
+               │
+               ▼
+  [5] Evidence-Driven Reassessment (Round 1..n)
+               │
+               ▼
+  [6] Hypothesis Evolution Matrix & Professional Report (Schema v1.1.0)
 ```
 
-### Key Architectural Separation
-
-- **Visual Observations vs. Fault Hypotheses:**
-  - `visibleObservations`: Strictly factual optical findings directly observable in the photo (e.g., darkened solder joints, flux residue, silkscreen designations, package markings).
-  - `hypotheses`: Deductive potential root causes connecting visible cues and reported symptoms (e.g., thermal pass-transistor breakdown, open feedback resistor). Hypotheses are never presented as confirmed without physical bench verification.
-- **Evidence-Based Reassessment:**
-  - Technicians log categorical outcomes (`passed`, `failed`, `inconclusive`, `unable_to_perform`), optional numeric measurements with units (e.g., `0.2 Ohm`, `3.28 V`), and technician commentary.
-  - Superseded attempts are tracked with backward references (`supersedesEvidenceId`), preserving a complete historical audit trail while allowing technicians to correct probe errors or record repeat measurements.
-  - Reassessment requests re-evaluate hypotheses using only four cautious statuses: `supported`, `weakened`, `unresolved`, or `contradicted`. The AI is strictly barred from marking faults as definitively "confirmed" or "refuted".
-  - Every hypothesis revision must explicitly cite valid, historical evidence record IDs in `citingEvidenceIds`.
+### Critical Epistemic Distinctions:
+1. **Technician Measurements $\neq$ AI Observations:**
+   Technician measurements are empirical physical data from bench instruments. AI observations are optical inferences from visual images.
+2. **Hypotheses $\neq$ Confirmed Faults:**
+   AI-generated assessments are prioritized diagnostic candidates to guide multimeter probes—never definitive physical certifications.
+3. **Populated Board Parallel Paths:**
+   A multimeter reading of $2.1\ \Omega$ across a power rail on a fully populated circuit board does not independently prove an IC is shorted. Decoupling capacitors, transient voltage suppressors, and ESD diodes share the power net. Faults remain unresolved until physical isolation (lifted pin, desoldered rail jumper) is achieved.
 
 ---
 
-## 3. Technology Stack
+## 4. Technology Stack
 
 - **Frontend:**
-  - React 19, TypeScript, Vite
-  - Custom responsive layout with dark/light themes and full mobile viewport support
-  - Native internationalization (`i18n.ts`) supporting English (EN), Spanish (ES), and Arabic (AR) with complete right-to-left (RTL) layout switching
+  - **React 19** (`^19.3.1`) & **React DOM**
+  - **TypeScript** (`~6.0.3`) in strict configuration
+  - **Vite** (`^8.3.5`) with HMR and optimized production bundling
+  - **Native IndexedDB** (`circuitlens_db` v1) with transaction-level write serialization and memory fallback
+  - Pure CSS variables with light and dark themes, mobile touch dock, and RTL support
 - **Backend:**
-  - Node.js, Express, TypeScript (NodeNext ESM modules)
-  - OpenAI Node.js SDK (v4.86.1) configured for Meta Model API compatibility
-  - Zero-dependency runtime schema validators and magic-byte container signature verifiers
-- **Security & Safety:**
-  - Zero client-side API keys; all credentials restricted to backend environment
-  - Strict input sanitization, bounded string lengths, and payload caps
-  - Automated regex redaction in error handlers preventing token leakage in logs or responses
+  - **Node.js** (v20+ recommended, tested on Node v22/v24)
+  - **Express** (`^4.21.2`) with route-scoped body limits (16 MiB intake, 100 KB general API)
+  - **OpenAI Node.js SDK** (`^4.86.1`) configured for OpenAI-compatible inference endpoints
+  - **TypeScript** (`^5.7.3`) with NodeNext ESM module resolution
+  - **dotenv** (`^16.4.7`) for environment variable management
+  - **cors** (`^2.8.5`) for local development origin negotiation
+- **Zero-Dependency Architecture:**
+  No heavy UI frameworks, no external state libraries, no cloud database drivers.
 
 ---
 
-## 4. API Endpoints & Data Contracts
+## 5. System Architecture & API Contracts
 
-### Core Endpoints
-
-| Method | Endpoint | Description | Request Payload | Response Contract |
-| :--- | :--- | :--- | :--- | :--- |
-| `GET` | `/api/health` | Service and proxy connectivity probe | None | Health status, target model, timestamp |
-| `GET` | `/api/test-meta` | Minimal test prompt to Meta Model API | None | Connectivity status and token latency |
-| `POST` | `/api/test-meta` | Custom test prompt to Meta Model API | `{ prompt?: string }` | Model response and token usage |
-| `POST` | `/api/diagnose` | Multimodal PCB fault diagnosis | `DiagnosisRequest` | `DiagnosisResponse` |
-| `POST` | `/api/reassess` | Evidence-driven hypothesis reassessment | `DiagnosisReassessmentRequest` | `DiagnosisReassessmentResponse` |
-
-### Diagnosis Request (`DiagnosisRequest`)
-```typescript
-interface DiagnosisRequest {
-  image: string;                  // Base64 data URL (JPEG, PNG, WebP; max 10 MiB decoded)
-  boardName?: string;             // Optional identifier (max 200 chars)
-  expectedBehavior: string;       // Required nominal description (max 2000 chars)
-  observedBehavior: string;       // Required fault symptoms (max 2000 chars)
-  relevantComponents?: string;    // Optional IC/part designations (max 500 chars)
-  additionalNotes?: string;       // Optional technician commentary (max 2000 chars)
-}
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                           CIRCUITLENS CLIENT                           │
+│                      (React 19 + Vite + IndexedDB)                     │
+└────────────────────────────────────┬───────────────────────────────────┘
+                                     │ Vite Proxy (/api/* -> :4000)
+                                     ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                        CIRCUITLENS BACKEND API                         │
+│                       (Express + Node.js ESM)                          │
+├────────────────────────────────────────────────────────────────────────┤
+│ GET  /api/health          - Proxy & active model configuration check   │
+│ GET  /api/test-meta       - Upstream model connectivity ping           │
+│ POST /api/test-meta       - Upstream test prompt execution             │
+│ POST /api/diagnose        - Multimodal PCB fault intake (max 16 MiB)   │
+│ POST /api/reassess        - Evidence ledger reassessment (max 100 KB)  │
+│ POST /api/assistant/chat  - Contextual case discussion (max 100 KB)    │
+└────────────────────────────────────┬───────────────────────────────────┘
+                                     │ Upstream HTTPS
+                                     ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                      CONFIGURED INFERENCE PROVIDER                     │
+│  - Meta Model API (default): https://api.meta.ai/v1 (muse-spark-1.3)   │
+│  - Baseten: https://inference.baseten.co/v1 (muse-spark-open-1026)     │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Diagnosis Response (`DiagnosisResponse`)
-```typescript
-interface DiagnosisResponse {
-  summary: string;
-  visibleObservations: Array<{
-    description: string;
-    evidence: string;
-    confidence: 'low' | 'medium' | 'high';
-  }>;
-  hypotheses: Array<{
-    title: string;
-    reasoning: string;
-    supportingEvidence: string[];
-    confidence: 'low' | 'medium' | 'high';
-    suggestedVerification: string;
-  }>;
-  recommendedChecks: Array<{
-    stepNumber: number;
-    title: string;
-    testType: string;
-    toolsNeeded: string[];
-    procedure: string;
-    expectedResult: string;
-    safetyNotes: string[];
-  }>;
-  limitations: string[];
-  safetyWarnings: string[];
-}
-```
+### Backend API Endpoints:
 
-### Reassessment Request (`DiagnosisReassessmentRequest`)
-```typescript
-interface DiagnosisReassessmentRequest {
-  diagnosticContext: {
-    boardName?: string;
-    expectedBehavior: string;
-    observedBehavior: string;
-    relevantComponents?: string;
-    additionalNotes?: string;
-    initialSummary: string;
-    visibleObservations: VisibleObservation[];
-    initialHypotheses: FaultHypothesis[];
-  };
-  evidence: Array<{
-    id: string;
-    targetRecommendationId: string;
-    cycleIndex: number;
-    stepNumber: number;
-    checkTitle: string;
-    outcome: 'passed' | 'failed' | 'inconclusive' | 'unable_to_perform';
-    numericValue?: number;
-    measurementUnit?: string;
-    technicianNotes?: string;
-    recordedAt: string;           // ISO 8601 timestamp
-    supersedesEvidenceId?: string;
-  }>;
-  additionalTechnicianNotes?: string;
-}
-```
-
-### Reassessment Response (`DiagnosisReassessmentResponse`)
-```typescript
-interface DiagnosisReassessmentResponse {
-  summary: string;
-  evidenceSynthesis: string;
-  revisedHypotheses: Array<{
-    title: string;
-    status: 'supported' | 'weakened' | 'unresolved' | 'contradicted';
-    confidence: 'low' | 'medium' | 'high';
-    explanationOfChange: string;
-    citingEvidenceIds: string[];  // Validated against submitted evidence IDs
-    suggestedVerification?: string;
-  }>;
-  nextRecommendedChecks: RecommendedCheck[];
-  safetyWarnings: string[];       // Enforced minimum of 1 electrical warning
-  limitations: string[];
-}
-```
+| Method | Endpoint | Description | Payload Constraints |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/health` | Service health & active model provider status | None |
+| `GET` | `/api/test-meta` | Upstream connectivity verification | None |
+| `POST` | `/api/test-meta` | Upstream prompt test | `{ prompt?: string }` |
+| `POST` | `/api/diagnose` | Initial multimodal PCB fault diagnosis | Valid base64 image (max 10 MiB decoded), `expectedBehavior`, `observedBehavior` |
+| `POST` | `/api/reassess` | Evidence ledger hypothesis revision | `diagnosticContext`, `evidence` array (1–20 items), no raw image |
+| `POST` | `/api/assistant/chat` | Contextual investigation assistant discussion | `investigationId`, `message` ($\le 2000$ chars), `context` ($\le 80\text{ KB}$), `conversationHistory` ($\le 50$ items) |
 
 ---
 
-## 5. Prerequisites & Environment Configuration
+## 6. Installation & Local Development
 
 ### Prerequisites
-- **Node.js:** v20.x or higher (verified on Node.js v22/v24)
+- **Node.js:** v20.x or higher (tested on Node.js v22 and v24)
 - **npm:** v10.x or higher
 - **OS:** Windows 10/11, macOS, or Linux
 
-### Environment Configuration
+### 1. Clone the Repository
+```bash
+git clone https://github.com/your-username/CircuitLens.git
+cd CircuitLens
+```
 
-1. Copy the `.env.example` template to `.env`:
-   ```powershell
-   Copy-Item .env.example .env
-   ```
-2. Configure your environment variables:
-   ```env
-   # Model Provider Selection: "meta" (default) or "baseten"
-   MODEL_PROVIDER=meta
-
-   # Required if MODEL_PROVIDER=meta (or omitted):
-   MODEL_API_KEY=your_actual_meta_model_api_key_here
-
-   # Required if MODEL_PROVIDER=baseten:
-   BASETEN_API_KEY=your_actual_baseten_api_key_here
-
-   # Optional custom overrides:
-   # MODEL_BASE_URL=https://inference.baseten.co/v1
-   # MODEL_NAME=meta-models/muse-spark-open-1026
-
-   # Backend server listening port (default: 4000)
-   PORT=4000
-   ```
-
-> ⚠️ **Security Notice:** The `.env` file is excluded from version control via `.gitignore`. Never commit API keys or paste credentials into client code. Offline tests do NOT contact either provider and consume zero API credits.
-
----
-
-## 6. Installation & Startup Instructions
-
-### Install Dependencies
-Install all workspace packages across root, backend, and frontend:
-```powershell
+### 2. Install Dependencies
+Install all workspace packages across root, client, and server:
+```bash
 npm run install:all
 ```
 
-### Run in Development Mode
-Launch both the Express backend and the Vite frontend simultaneously:
-```powershell
+### 3. Configure Environment Variables
+Create your local server configuration from the provided template:
+```bash
+# On Windows (PowerShell):
+Copy-Item .env.example server/.env
+
+# On macOS/Linux:
+cp .env.example server/.env
+```
+
+Edit `server/.env` with your desired configuration:
+```env
+# Model Provider: "meta" (default) or "baseten"
+MODEL_PROVIDER=meta
+
+# API Keys (configure the one corresponding to your MODEL_PROVIDER):
+MODEL_API_KEY=your_meta_model_api_key_here
+BASETEN_API_KEY=your_baseten_api_key_here
+
+# Backend server port
+PORT=4000
+```
+> ⚠️ **Security Warning:** Never commit `.env` files to Git. Both root and server `.gitignore` files exclude `.env`.
+
+### 4. Run Development Servers
+Start both the backend server and Vite frontend simultaneously:
+```bash
 npm run dev
 ```
 - **Frontend Workbench:** `http://localhost:5173`
 - **Backend API:** `http://localhost:4000`
-- **API Proxy:** Vite automatically proxies `/api/*` requests from `:5173` to `:4000`.
 
-### Typechecking & Production Build
-```powershell
-# Typecheck both backend and frontend
+### 5. Production Build & Verification
+```bash
+# Typecheck TypeScript across client and server
 npm run typecheck
 
-# Build production bundles
+# Build optimized production bundles
 npm run build
 
-# Start backend in production mode
+# Start production server
 npm run start
 ```
 
 ---
 
-## 7. Verification & Offline Automated Test Suites
+## 7. AI Provider Configuration
 
-CircuitLens includes comprehensive offline test suites that execute **255 assertions** across 6 suites (5 server test suites and 1 client test suite) using mock analyzers and ephemeral local servers. **Zero external API calls are made and zero model credits are consumed during testing.**
+CircuitLens supports configurable model providers defined in `server/src/metaClient.ts`:
 
-Execute all test suites across the entire repository with:
-```powershell
-npm test
-```
+1. **Meta Model API (Default):**
+   - `MODEL_PROVIDER=meta`
+   - Base URL: `https://api.meta.ai/v1`
+   - Default Model: `muse-spark-1.3`
+   - Key Variable: `MODEL_API_KEY`
+2. **Baseten Provider:**
+   - `MODEL_PROVIDER=baseten`
+   - Base URL: `https://inference.baseten.co/v1`
+   - Verified Model: `meta-models/muse-spark-open-1026`
+   - Key Variable: `BASETEN_API_KEY`
 
-### Individual Test Suites
+### Optional Provider Overrides:
+- `MODEL_BASE_URL`: Custom proxy or gateway URL.
+- `MODEL_NAME`: Custom model identifier.
+- `MODEL_TIMEOUT_MS`: Upstream request timeout in ms (default: `75000`, bounds: `5000`–`300000`).
 
-1. **Provider Configuration & Credential Isolation (`test:provider`)**
-   ```powershell
-   npm --prefix server run test:provider
-   ```
-   - **Coverage (74 assertions):** Provider resolution (`meta` default, `baseten`), credential isolation without cross-fallback, client instantiation with base URLs and models, bounded timeouts (45s), zero retries, and `/api/health` provider telemetry.
-
-2. **Diagnosis Request & Response Validation (`test:validation`)**
-   ```powershell
-   npm --prefix server run test:validation
-   ```
-   - **Coverage (37 assertions):** Image data URL parsing, JPEG/PNG/WebP magic-byte signatures, payload size limits, request string bounds, response schema checking, markdown fence stripping, and error sanitization.
-
-3. **Diagnosis Endpoint Integration (`test:endpoint`)**
-   ```powershell
-   npm --prefix server run test:endpoint
-   ```
-   - **Coverage (28 assertions):** Ephemeral server startup, `/api/health` probe, missing key behavior, valid `/api/diagnose` routing with mock analyzer, credit protection preventing upstream model calls when inputs are invalid, and payload size limit enforcement.
-
-4. **Reassessment Validation & Citations (`test:reassessment-validation`)**
-   ```powershell
-   npm --prefix server run test:reassessment-validation
-   ```
-   - **Coverage (54 assertions):** Reassessment request structure, evidence record schema, measurement-pair validation (`numericValue` + `measurementUnit`), ISO 8601 calendar date rollover verification, cross-record supersession integrity, cautious status enums, response bound checks, hallucinated citation rejection, and mandatory safety warning validation.
-
-5. **Reassessment Endpoint Integration (`test:reassessment-endpoint`)**
-   ```powershell
-   npm --prefix server run test:reassessment-endpoint
-   ```
-   - **Coverage (45 assertions):** Ephemeral server startup, POST `/api/reassess` integration with mock analyzer, credit protection on invalid evidence lists, supersession reasoning injected into model prompt, prompt framing forbidding image re-examination, response parsing/validation, and upstream error normalization.
-
-6. **Client Service & Lifecycle Tests (`client test`)**
-   ```powershell
-   npm --prefix client test
-   ```
-   - **Coverage (17 assertions):** Client-side cancellation, boundary validation, evidence form limits, recommendation ID determinism, and component unmount abort simulation.
+> ℹ️ **Notice on Contextual Assistant Inference:**
+> The Contextual Investigation Assistant currently generates **Offline Preview** responses derived from active case evidence. All responses carry explicit `Offline Preview` metadata badges. The server system prompt and XML context boundaries (`assistantPrompt.ts`) are hardened and ready for live provider integration once enabled.
 
 ---
 
-## 8. Electrical Safety Rules & Diagnostic Limitations
+## 8. Deterministic Demonstration Mode (Hackathon Demo)
 
-- **Advisory Only:** All diagnostic hypotheses and recommendations produced by CircuitLens are advisory. They do not supersede standard electrical engineering practices, component manufacturer datasheets, or institutional safety protocols.
-- **Unpowered Checks First:** The system enforces prioritization of non-destructive, unpowered tests (cold resistance, diode checks, continuity) before suggesting powered in-circuit measurements.
-- **Single-Angle Photographic Limitations:** The model can only evaluate components visible in the uploaded image. Underside layers, inner PCB traces, and obscured components cannot be visually inspected.
-- **Live Inference Notice:** Live inference requires a valid `MODEL_API_KEY` configured in `.env`. Offline testing verifies complete request/response schemas and endpoints without making network calls.
+CircuitLens includes a deterministic offline demonstration environment that replays realistic diagnostic scenarios without making live model requests or spending API credits.
+
+### Running the Demo:
+
+1. **Start the Demo Mock Server:**
+   ```bash
+   node server/demo/demo_mock_server.mjs
+   ```
+   The mock server starts on `http://localhost:4000` with pre-configured fixtures for the Arduino Uno SMD overcurrent scenario.
+
+2. **Start the Frontend with Mock Mode:**
+   ```bash
+   npm --prefix client run dev
+   ```
+   Open your browser to:
+   ```
+   http://localhost:5173/?mock=true
+   ```
+
+3. **Demonstration Flow:**
+   - **Step 1 — Intake:** Upload an image or use the pre-staged Arduino Uno case. Click *Run AI Diagnostic Analysis*.
+   - **Step 2 — Initial Assessment:** Review optical findings, initial candidate hypotheses, and recommended cold resistance checks.
+   - **Step 3 — Log Evidence:** Log a $2.1\ \Omega$ cold rail reading on the 5V bus.
+   - **Step 4 — AI Reassessment:** Click *Reassess with AI* to observe hypothesis evolution from initial candidate to `supported`, accompanied by populated board parallel path warnings.
+   - **Step 5 — Assistant Discussion:** Open the *Case Assistant* drawer to ask: *"Interpret the latest measurement cautiously"* and observe populated board reasoning.
+   - **Step 6 — Export Report:** Switch to the *Report* perspective to preview the bench document, export Markdown, or download structured JSON (**CircuitLens Schema v1.1.0**).
+
+> ⚠️ Replayed responses in demo mode are deterministic fixtures designed for presentation consistency. Technician measurements in the demo are sample bench inputs.
+
+---
+
+## 9. Limitations & Responsible Use
+
+- **CircuitLens does not physically measure hardware:** It is a remote analytical decision-support software tool. It has zero hardware access and cannot verify physical continuity.
+- **Hypotheses are not certified root causes:** All diagnostic outputs are candidate hypotheses to guide hands-on troubleshooting. Physical confirmation rests exclusively with the human technician.
+- **Low rail resistance on populated boards is not proof of a short:** In-circuit measurements reflect parallel branches (capacitors, diodes, IC internal silicon). Components must be physically isolated before confirming failure.
+- **Local-First Single-Operator Session:** Data is stored in the browser's native IndexedDB. It is intended for a single operator per browser profile; it does not currently provide multi-tab write conflict resolution or cloud synchronization.
+- **Not a Certified Medical or Safety System:** CircuitLens is a hackathon development prototype. Do not use for life-critical, avionics, medical, or high-voltage mains diagnostic certification without independent qualification.
+
+---
+
+## 10. Automated Testing & Verification
+
+CircuitLens includes **431 automated tests** across 33 test suites that execute completely offline with zero external network requests and zero model credit consumption:
+
+```bash
+# Run all client and server test suites
+npm test
+```
+
+### Verified Test Summary:
+
+| Suite | Tests | Framework | Status |
+| :--- | :---: | :--- | :---: |
+| **Client Test Suite** | **152** | Node `--experimental-strip-types` (26 suites) | **PASS** |
+| - *Client Cancellation & Abort* | 3 | Node assert | PASS |
+| - *Reassessment Boundaries* | 4 | Node assert | PASS |
+| - *Evidence Validation & Limits* | 7 | Node assert | PASS |
+| - *Image Optimization & Scaler* | 11 | Node assert | PASS |
+| - *Reassessment UI Matching* | 10 | Node assert | PASS |
+| - *Evolution Matrix & Timeline* | 16 | Node assert | PASS |
+| - *Report Builder & Schema v1.1.0* | 18 | Node assert | PASS |
+| - *Workspace & IndexedDB Store* | 13 | Node assert | PASS |
+| - *Persistence Concurrency & Lifecycle* | 9 | Node assert | PASS |
+| - *Contextual Assistant & Freshness* | 15 | Node assert | PASS |
+| **Server Test Suite** | **279** | `tsx` / Node ESM (7 suites) | **PASS** |
+| - *Provider Config & Credential Isolation* | 47 | Node assert | PASS |
+| - *Diagnosis Intake & Signature Validation* | 45 | Node assert | PASS |
+| - *Diagnosis Endpoint Integration* | 23 | Ephemeral HTTP server | PASS |
+| - *Reassessment Request & Citation Validation* | 54 | Node assert | PASS |
+| - *Reassessment Endpoint Integration* | 28 | Ephemeral HTTP server | PASS |
+| - *Adversarial Integrity & Safety Scenarios* | 62 | Node assert | PASS |
+| - *Assistant Deep Validation & Prompt Safety* | 20 | Ephemeral HTTP server | PASS |
+| **Total Automated Tests** | **431** | **All suites passed, 0 failures** | **PASS** |
+
+### Project Status:
+CircuitLens is a hackathon prototype developed for the Meta Global AI Developer Hackathon. A formal open-source license has not yet been attached to this repository. All rights are reserved by the original authors pending submission and release review.

@@ -25,3 +25,11 @@ export interface FieldValidationErrors {
   expectedBehavior?: string;
   observedBehavior?: string;
 }
+
+export interface ActiveInvestigationInfo {
+  boardName: string;
+  imageName: string;
+  reassessmentCount: number;
+  onNewInvestigation: () => void;
+  onEditSymptoms: () => void;
+}

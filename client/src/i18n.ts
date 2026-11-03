@@ -4,6 +4,8 @@ export interface Translations {
   brandName: string;
   brandTagline: string;
   stageBadge: string;
+  heroTag: string;
+  intakeBadge: string;
   stageTitle: string;
   stageSubtitle: string;
   systemStatusTitle: string;
@@ -234,13 +236,257 @@ export interface Translations {
   hardwareAccessDisclaimer: string;
   evidenceCitationSuperseded: string;
   evidenceCitationSupersededHint: string;
+
+  // Stage 6B-3: Operational Telemetry & Cost Transparency
+  telemetrySectionTitle: string;
+  telemetrySectionSubtitle: string;
+  telemetryDiagnosisTitle: string;
+  telemetryReassessmentTitle: string;
+  telemetryProviderLabel: string;
+  telemetryModelLabel: string;
+  telemetryDurationLabel: string;
+  telemetryInputTokensLabel: string;
+  telemetryOutputTokensLabel: string;
+  telemetryTotalTokensLabel: string;
+  telemetryEstimatedCostLabel: string;
+  telemetryPartialCostLabel: string;
+  telemetryPartialCostBadge: string;
+  telemetryPartialCostDisclaimer: string;
+  telemetryCostDisclaimer: string;
+  telemetryUnavailable: string;
+  telemetryDetailsSummary: string;
+  telemetryStatusReported: string;
+  telemetryStatusPartial: string;
+  telemetryStatusUnavailable: string;
+
+  // Stage 6B-4B-1: Interactive Circuit Image Inspection
+  inspectorTitle: string;
+  inspectorSubtitle: string;
+  inspectorZoomIn: string;
+  inspectorZoomOut: string;
+  inspectorFit: string;
+  inspectorReset100: string;
+  inspectorFullscreen: string;
+  inspectorExitFullscreen: string;
+  inspectorZoomLevel: string;
+  inspectorPanHint: string;
+  inspectorSelectedObservation: string;
+  inspectorClearObservation: string;
+  inspectorToggleDrawer: string;
+  inspectorCloseDrawer: string;
+  inspectorOriginalImageBadge: string;
+
+  // Stage 6B-4B-2: Professional Diagnostic Report Export
+  exportSectionTitle: string;
+  exportSectionSubtitle: string;
+  exportPrintPdfBtn: string;
+  exportJsonBtn: string;
+  exportMarkdownBtn: string;
+  exportReportBadge: string;
+  exportEpistemicNotice: string;
+  exportReportHeaderTitle: string;
+  exportInvestigationIdLabel: string;
+  exportGeneratedAtLabel: string;
+  exportDeviceSectionTitle: string;
+  exportObservationsSectionTitle: string;
+  exportHypothesesSectionTitle: string;
+  exportEvidenceSectionTitle: string;
+  exportReassessmentsSectionTitle: string;
+  exportChecksSectionTitle: string;
+  exportSafetySectionTitle: string;
+  exportLimitationsSectionTitle: string;
+  exportTelemetrySectionTitle: string;
+  exportOriginAi: string;
+  exportOriginTech: string;
+  exportOriginSystem: string;
+
+  // Stage 6B-4B-3: Hypothesis Evolution & Evidence Timeline
+  evolutionMatrixTitle: string;
+  evolutionMatrixSubtitle: string;
+  evolutionEpistemicNotice: string;
+  matrixCycleInitialOnly: string;
+  matrixCyclesLogged: string;
+  matrixColHypothesis: string;
+  matrixColInitial: string;
+  matrixColRoundPrefix: string;
+  matrixColCurrent: string;
+  matrixIntroducedInPrefix: string;
+  matrixShowDetails: string;
+  matrixHideDetails: string;
+  matrixInitialReasoningLabel: string;
+  matrixStatusNotPresent: string;
+  matrixStatusOmitted: string;
+  matrixDeltaUp: string;
+  matrixDeltaDown: string;
+  matrixCitationsCount: string;
+  timelineTitle: string;
+  timelineSubtitle: string;
+  timelineEventsLogged: string;
+  timelineSourceAi: string;
+  timelineSourceTech: string;
+  timelineSourceSystem: string;
+  timelineTimestampMissing: string;
+  timelineInitialTag: string;
+  timelineSupersededBadge: string;
+  timelineInconclusiveNotice: string;
+  timelineUnableNotice: string;
+  timelineRecordedMeasurement: string;
+  timelineJumpToSuperseding: string;
+  timelineHypothesisChangesTitle: string;
+  timelineSafetyAlert: string;
+  currentAssessmentTitle: string;
+  currentAssessmentSubtitle: string;
+  navToMatrixBtn: string;
+  navToTimelineBtn: string;
+  assessmentEpistemicHeader: string;
+  assessmentEpistemicNotice: string;
+  noSupportedHypotheses: string;
+  noContradictedHypotheses: string;
+  noUnresolvedHypotheses: string;
+  strongestSupportingEvidenceTitle: string;
+  importantContradictoryEvidenceTitle: string;
+  outstandingChecksTitle: string;
+  criticalSafetyTitle: string;
+  subnavOverview: string;
+  subnavMatrix: string;
+  subnavTimeline: string;
+  subnavReport: string;
+
+  // Stage 6B-4B-3D: Ambiguous Hypothesis Decoupling & Localization
+  ambiguousIdentityBadge: string;
+  ambiguousIdentityTooltip: string;
+  ambiguousMultipleCandidatesNotice: string;
+  ambiguousCannotEstablishAcrossRounds: string;
+  ambiguousNoTrendNotice: string;
+  ambiguousGroupHeader: string;
+  ambiguousGroupSubtitle: string;
+  ambiguousReappearanceBadge: string;
+  ambiguousReappearanceTooltip: string;
+  ambiguousRoundIsolatedNotice: string;
+
+  // Stage 6B-4B-3F: Explicit Hypothesis Identity Semantics & Export Completeness
+  heuristicTitleMatchBadge: string;
+  heuristicTitleMatchTooltip: string;
+  heuristicTrackingExplanation: string;
+  heuristicNotConfirmedNotice: string;
+  matrixDeltaUpTooltip: string;
+  matrixDeltaDownTooltip: string;
+  matrixDeltaSameTooltip: string;
+  matrixOverallDeltaUpTooltip: string;
+  matrixOverallDeltaDownTooltip: string;
+  exportInitialOnly: string;
+  exportNoEvidenceRecorded: string;
+  exportInitialReasoningHeading: string;
+  exportTechnicianEvidenceHeading: string;
+  exportDefaultSafetyNotice: string;
+  exportDefaultLimitationsNotice: string;
+  viewMeasurementRecordTooltip: string;
+
+  // Stage 6B-5B: Compact Investigation Header & Workspace Shell
+  healthPopoverTitle: string;
+  healthPopoverClose: string;
+  subnavAriaLabel: string;
+  investigationRound: string;
+  statusActiveAssessment: string;
+  statusReassessed: string;
+  compactNewInvestigation: string;
+  compactEditSymptoms: string;
+
+  // Stage 6B-5C: Desktop Split Diagnostic Workbench
+  inspectionRailAriaLabel: string;
+  workflowRailAriaLabel: string;
+  crossReferenceHint: string;
+  crossReferenceClear: string;
+  initialTelemetryCardTitle: string;
+
+  // Stage 6B-5E: Mobile Bottom Action Dock
+  mobileDockAriaLabel: string;
+  dockNavOverview: string;
+  dockNavMatrix: string;
+  dockNavTimeline: string;
+  dockNavReport: string;
+  dockActionLogEvidence: string;
+  dockActionReassess: string;
+  dockActionReassessing: string;
+
+  // Stage 6C-2C: Local-First Investigation Workspace & Persistence
+  workspaceTitle: string;
+  workspaceSubtitle: string;
+  newInvestigationAction: string;
+  allInvestigationsBtn: string;
+  searchInvestigationsPlaceholder: string;
+  filterAll: string;
+  filterUnderInvestigation: string;
+  filterAwaitingEvidence: string;
+  filterAssessmentUpdated: string;
+  filterResolved: string;
+  filterArchived: string;
+  noInvestigationsFound: string;
+  noSavedInvestigationsTitle: string;
+  noSavedInvestigationsDesc: string;
+  savedLocallyNotice: string;
+  privacyNotice: string;
+  saveStatusSaving: string;
+  saveStatusSaved: string;
+  saveStatusError: string;
+  deleteConfirmTitle: string;
+  deleteConfirmMsg: string;
+  deleteBtn: string;
+  archiveBtn: string;
+  unarchiveBtn: string;
+  openInvestigationBtn: string;
+  renameInvestigationBtn: string;
+  lastModifiedLabel: string;
+  evidenceCountLabel: string;
+  reassessmentsCountLabel: string;
+  backToDashboardBtn: string;
+  markResolvedBtn: string;
+  reopenCaseBtn: string;
+  statusNew: string;
+  statusUnderInvestigation: string;
+  statusAwaitingEvidence: string;
+  statusAssessmentUpdated: string;
+  statusResolved: string;
+  saveRenameBtn: string;
+  cancelBtn: string;
+
+  // Stage 6C-3A: Contextual Investigation Assistant
+  assistantPanelTitle: string;
+  assistantPanelSubtitle: string;
+  assistantActiveCaseLabel: string;
+  assistantOfflineBadge: string;
+  assistantOfflineNotice: string;
+  assistantSuggestedHeading: string;
+  assistantSuggestLeading: string;
+  assistantSuggestUnconfirmed: string;
+  assistantSuggestLatestMeasure: string;
+  assistantSuggestNext: string;
+  assistantSuggestDistinguish: string;
+  assistantSuggestEvolution: string;
+  assistantInputPlaceholder: string;
+  assistantSendBtn: string;
+  assistantSending: string;
+  assistantKeyboardHint: string;
+  assistantEmptyHistory: string;
+  assistantClearHistory: string;
+  assistantRetryBtn: string;
+  assistantCloseBtn: string;
+  assistantToggleBtn: string;
+  assistantMessagesCount: string;
+  assistantLiveBadge: string;
+  assistantLiveNotice: string;
+  assistantPersistenceError: string;
+  assistantRetrySaveBtn: string;
+  assistantUnsavedPill: string;
 }
 
 export const translations: Record<SupportedLanguage, Translations> = {
   en: {
     brandName: 'CircuitLens',
     brandTagline: 'AI-Assisted Electronics Troubleshooting System',
-    stageBadge: 'Stage 4 • Evidence-Driven Diagnostics',
+    stageBadge: 'AI Diagnostic Workbench',
+    heroTag: 'Hardware Intelligence',
+    intakeBadge: 'Diagnostic Intake',
     stageTitle: 'AI-Powered Circuit Diagnostics Workbench',
     stageSubtitle: 'High-precision visual PCB defect analysis, multi-hypothesis fault reasoning, and ordered safety inspection procedures.',
     systemStatusTitle: 'Subsystem Diagnostics',
@@ -252,7 +498,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
     serviceLabel: 'Service Identifier',
     latencyLabel: 'Round-trip Latency',
     timestampLabel: 'Backend Heartbeat',
-    targetModelLabel: 'Meta AI Model Target',
+    targetModelLabel: 'AI Model Target',
     apiProxyStatusLabel: 'Vite Proxy Pipeline',
     apiProxyVerified: 'Active (/api -> :4000)',
     nextStagesTitle: 'Investigation Pipeline & Core Capabilities',
@@ -304,10 +550,10 @@ export const translations: Record<SupportedLanguage, Translations> = {
     notesLabel: 'Additional Diagnostic Notes',
     notesOptional: '(Optional)',
     notesPlaceholder: 'e.g., Board was dropped prior to failure; measured 0.2V on TP1...',
-    reviewInvestigationBtn: 'Review & Stage Investigation',
-    stagedConfirmationTitle: 'Intake Profile Staged in Memory',
-    stagedConfirmationNotice: 'Circuit image, symptom descriptions, and suspect landmarks are staged locally in browser memory.',
-    stagedReadyBadge: 'Ready for AI Diagnosis',
+    reviewInvestigationBtn: 'Review Investigation Details',
+    stagedConfirmationTitle: 'Investigation Setup Review',
+    stagedConfirmationNotice: 'Verify board photo and symptom details before initiating multimodal AI inspection.',
+    stagedReadyBadge: 'Ready for Analysis',
     stagedBoardLabel: 'Board Name',
     stagedImageLabel: 'Evidence Image',
     stagedExpectedLabel: 'Expected Behavior',
@@ -331,7 +577,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
     // Stage 3: AI Diagnostics & Results
     startDiagnosisBtn: 'Run AI Circuit Diagnosis',
     diagnosingProgressTitle: 'Analyzing Circuit Board...',
-    diagnosingProgressSubtitle: 'Transmitting PCB photograph and symptom profile to Meta Model API for multimodal defect and failure path analysis.',
+    diagnosingProgressSubtitle: 'Transmitting PCB photograph and symptom profile for multimodal defect and failure path analysis.',
     diagnosingTip: 'Visual reasoning and safety verification typically take 5 to 20 seconds. Please do not close this window.',
     cancelDiagnosisBtn: 'Cancel Diagnosis',
     retryDiagnosisBtn: 'Retry Diagnosis',
@@ -339,9 +585,9 @@ export const translations: Record<SupportedLanguage, Translations> = {
     newInvestigationBtn: 'New Circuit Investigation',
     confirmNewInvestigation: 'Start a new circuit investigation? Current diagnosis results and staged images will be cleared.',
     diagnosisErrorTitle: 'Diagnostic Analysis Error',
-    missingApiKeyErrorNotice: 'Meta Model API key is not configured on the server. Please add your MODEL_API_KEY to the server .env configuration.',
+    missingApiKeyErrorNotice: 'Model API key is not configured on the server. Please add your MODEL_API_KEY to the server .env configuration.',
     networkErrorNotice: 'Unable to reach the backend diagnostic service. Please verify that the backend server is running on port 4000.',
-    rateLimitErrorNotice: 'Meta Model API rate limit reached. Please wait a moment before trying again.',
+    rateLimitErrorNotice: 'Model API rate limit reached. Please wait a moment before trying again.',
     timeoutErrorNotice: 'Diagnostic request timed out. The model or network took too long to complete visual inference.',
     genericErrorNotice: 'An unexpected error occurred during diagnostic processing. Your entered symptoms and image have been preserved.',
     outputLimitErrorNotice: 'The model reached its maximum output token limit before completing the diagnosis. Please provide more concise intake notes or contact support.',
@@ -350,8 +596,8 @@ export const translations: Record<SupportedLanguage, Translations> = {
     modelRefusalErrorNotice: 'The model refused to process this diagnostic request. Please review the image and symptom text for compliance with safety guidelines.',
 
     resultsSectionTitle: 'AI Circuit Diagnostic Report',
-    resultsSectionSubtitle: 'Multi-hypothesis electronic failure analysis powered by Meta multimodal reasoning.',
-    resultsBadge: 'Stage 3 Diagnosis',
+    resultsSectionSubtitle: 'Multi-hypothesis electronic failure analysis powered by multimodal reasoning.',
+    resultsBadge: 'Initial Assessment (R0)',
     executiveSummaryTitle: 'Diagnostic Summary',
     visibleObservationsTitle: 'Direct Optical Observations',
     visibleObservationsSubtitle: 'Concrete physical features directly visible on the board, separated from inferred root causes.',
@@ -428,7 +674,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
     // Stage 4B-4: Reassessment Controls & Results
     reassessButton: 'Request Diagnostic Reassessment',
     reassessingProgressTitle: 'Reassessing Diagnostic Hypotheses...',
-    reassessingProgressSubtitle: 'Synthesizing bench evidence and refining fault probabilities with Meta AI.',
+    reassessingProgressSubtitle: 'Synthesizing bench evidence and updating fault probabilities.',
     reassessmentReadyNotice: 'Recorded bench evidence is ready for diagnostic reassessment.',
     noEvidenceForReassessmentNotice: 'Record at least 1 diagnostic check outcome to request AI reassessment.',
     evidenceLimitExceededNotice: 'The current reassessment endpoint accepts up to 20 evidence records. Your investigation currently contains {count} records. Reassessment is temporarily paused to preserve complete history without truncation.',
@@ -468,11 +714,255 @@ export const translations: Record<SupportedLanguage, Translations> = {
     hardwareAccessDisclaimer: 'CircuitLens does not have direct access to physical hardware. Physical tests, measurements, and component changes shown here are based on information reported by the technician.',
     evidenceCitationSuperseded: 'Superseded',
     evidenceCitationSupersededHint: 'This measurement or check was superseded by a later test record.',
+
+    // Stage 6B-3: Operational Telemetry & Cost Transparency
+    telemetrySectionTitle: 'Operational Telemetry & Usage',
+    telemetrySectionSubtitle: 'Inference latency, provider model, token processing, and estimated cost metrics.',
+    telemetryDiagnosisTitle: 'Diagnosis Telemetry',
+    telemetryReassessmentTitle: 'Reassessment Telemetry',
+    telemetryProviderLabel: 'AI Provider',
+    telemetryModelLabel: 'Model',
+    telemetryDurationLabel: 'Latency',
+    telemetryInputTokensLabel: 'Input Tokens',
+    telemetryOutputTokensLabel: 'Output Tokens',
+    telemetryTotalTokensLabel: 'Total Tokens',
+    telemetryEstimatedCostLabel: 'Estimated Cost',
+    telemetryPartialCostLabel: 'Partial Cost Subtotal',
+    telemetryPartialCostBadge: 'Partial: {cost}',
+    telemetryPartialCostDisclaimer: 'Incomplete usage reported by provider. Displayed cost is a partial subtotal, not the full request cost.',
+    telemetryCostDisclaimer: 'Estimated based on published provider token rates. Actual billing may vary.',
+    telemetryUnavailable: 'Unavailable',
+    telemetryDetailsSummary: 'Operational Telemetry',
+    telemetryStatusReported: 'Provider Reported',
+    telemetryStatusPartial: 'Partial Usage Reported',
+    telemetryStatusUnavailable: 'Usage Unavailable',
+
+    // Stage 6B-4B-1: Interactive Circuit Image Inspection
+    inspectorTitle: 'Circuit Board Visual Inspection',
+    inspectorSubtitle: 'Inspect fine PCB traces, silkscreen, and solder joints alongside AI observations.',
+    inspectorZoomIn: 'Zoom In (+)',
+    inspectorZoomOut: 'Zoom Out (-)',
+    inspectorFit: 'Fit to View',
+    inspectorReset100: '100% Native Scale',
+    inspectorFullscreen: 'Fullscreen Inspection',
+    inspectorExitFullscreen: 'Exit Fullscreen',
+    inspectorZoomLevel: 'Zoom',
+    inspectorPanHint: 'Drag to pan around the circuit board',
+    inspectorSelectedObservation: 'Referenced Visual Observation',
+    inspectorClearObservation: 'Clear Selection',
+    inspectorToggleDrawer: 'Inspect Circuit Photo',
+    inspectorCloseDrawer: 'Close Inspector',
+    inspectorOriginalImageBadge: 'Original Resolution',
+
+    // Stage 6B-4B-2: Professional Diagnostic Report Export
+    exportSectionTitle: 'Diagnostic Report & Export',
+    exportSectionSubtitle: 'Export comprehensive laboratory reports for technician records, ticketing, or customer handoff.',
+    exportPrintPdfBtn: 'Print / Save as PDF',
+    exportJsonBtn: 'Download JSON',
+    exportMarkdownBtn: 'Download Markdown (.md)',
+    exportReportBadge: 'Report Ready',
+    exportEpistemicNotice: 'Diagnostic reports document remote AI visual reasoning and technician bench measurements. Suspected faults are analytical hypotheses, not physically confirmed root causes without component isolation.',
+    exportReportHeaderTitle: 'CircuitLens Diagnostic Report',
+    exportInvestigationIdLabel: 'Investigation ID',
+    exportGeneratedAtLabel: 'Generated',
+    exportDeviceSectionTitle: 'Circuit & Intake Information',
+    exportObservationsSectionTitle: 'Direct Optical Observations',
+    exportHypothesesSectionTitle: 'Fault Hypotheses & Evolution',
+    exportEvidenceSectionTitle: 'Technician Evidence Ledger',
+    exportReassessmentsSectionTitle: 'Reassessment Findings & Synthesis',
+    exportChecksSectionTitle: 'Recommended Troubleshooting Checks',
+    exportSafetySectionTitle: 'Electrical Safety Precautions',
+    exportLimitationsSectionTitle: 'Diagnostic Limitations & Uncertainties',
+    exportTelemetrySectionTitle: 'Inference Telemetry & Token Accounting',
+    exportOriginAi: 'AI-GENERATED ANALYSIS',
+    exportOriginTech: 'TECHNICIAN BENCH RECORD',
+    exportOriginSystem: 'SYSTEM METADATA',
+
+    // Stage 6B-4B-3: Hypothesis Evolution & Evidence Timeline
+    evolutionMatrixTitle: 'Hypothesis Evolution Matrix',
+    evolutionMatrixSubtitle: 'Comparative tracking of fault candidates across initial diagnosis and all reassessment rounds.',
+    evolutionEpistemicNotice: 'Historical hypothesis assessments document remote AI visual deductions based on accumulated bench measurements. Supported hypotheses are analytical deductions, never physically confirmed root causes without component isolation.',
+    matrixCycleInitialOnly: 'Initial Assessment (R0)',
+    matrixCyclesLogged: 'Rounds',
+    matrixColHypothesis: 'Fault Hypothesis Candidate',
+    matrixColInitial: 'Initial (R0)',
+    matrixColRoundPrefix: 'Round',
+    matrixColCurrent: 'Current State',
+    matrixIntroducedInPrefix: 'Introduced in',
+    matrixShowDetails: 'View rationale',
+    matrixHideDetails: 'Hide rationale',
+    matrixInitialReasoningLabel: 'Initial Deduction',
+    matrixStatusNotPresent: '—',
+    matrixStatusOmitted: 'Omitted',
+    matrixDeltaUp: 'Shifted Up',
+    matrixDeltaDown: 'Shifted Down',
+    matrixCitationsCount: 'citations total',
+    timelineTitle: 'Evidence & Diagnostic Timeline',
+    timelineSubtitle: 'Chronological audit trail of physical bench checks, superseded measurements, and AI syntheses.',
+    timelineEventsLogged: 'Milestones',
+    timelineSourceAi: 'AI-GENERATED',
+    timelineSourceTech: 'TECHNICIAN BENCH',
+    timelineSourceSystem: 'SYSTEM METADATA',
+    timelineTimestampMissing: 'Timestamp not recorded',
+    timelineInitialTag: 'Cycle R0 (Initial)',
+    timelineSupersededBadge: '[SUPERSEDED]',
+    timelineInconclusiveNotice: 'Inconclusive outcome — does not prove or disprove hypotheses',
+    timelineUnableNotice: 'Unable to perform check as specified',
+    timelineRecordedMeasurement: 'Recorded Value',
+    timelineJumpToSuperseding: 'Jump to replacement attempt',
+    timelineHypothesisChangesTitle: 'Evaluated Hypothesis Shifts',
+    timelineSafetyAlert: 'Safety Precautions',
+    currentAssessmentTitle: 'Current Diagnostic State Synthesis',
+    currentAssessmentSubtitle: 'Executive tri-state plausibility summary based on accumulated bench measurements.',
+    navToMatrixBtn: 'View Evolution Matrix',
+    navToTimelineBtn: 'View Evidence Timeline',
+    assessmentEpistemicHeader: 'Epistemic Guardrail',
+    assessmentEpistemicNotice: 'Supported hypotheses represent analytical plausibility corroborated by bench test readings. They are NEVER physically confirmed root causes without component isolation and desoldering.',
+    noSupportedHypotheses: 'No hypotheses supported by current evidence.',
+    noContradictedHypotheses: 'No hypotheses ruled out by bench tests yet.',
+    noUnresolvedHypotheses: 'No unresolved fault candidates remaining.',
+    strongestSupportingEvidenceTitle: 'Decisive Corroborating Evidence',
+    importantContradictoryEvidenceTitle: 'Decisive Contradictory Evidence',
+    outstandingChecksTitle: 'Prioritized Next Verification Checks',
+    criticalSafetyTitle: 'Essential Electrical Safety Precautions',
+    subnavOverview: 'Overview',
+    subnavMatrix: 'Hypothesis Evolution Matrix',
+    subnavTimeline: 'Evidence Timeline',
+    subnavReport: 'Report Export',
+
+    // Stage 6B-4B-3D: Ambiguous Hypothesis Decoupling & Localization
+    ambiguousIdentityBadge: 'Ambiguous Identity',
+    ambiguousIdentityTooltip: 'Multiple candidates share this title. Identity cannot be definitively tracked across rounds.',
+    ambiguousMultipleCandidatesNotice: 'Multiple candidates share this title; identity cannot be established across rounds.',
+    ambiguousCannotEstablishAcrossRounds: 'Identity cannot be established across diagnostic rounds.',
+    ambiguousNoTrendNotice: 'No confidence trend is shown because hypothesis identity across rounds is uncertain.',
+    ambiguousGroupHeader: 'Round-Specific Ambiguous Candidates',
+    ambiguousGroupSubtitle: 'These fault candidates share identical titles within the same round. They are documented independently without inferred cross-round continuity.',
+    ambiguousReappearanceBadge: 'Reappeared (Uncertain Identity)',
+    ambiguousReappearanceTooltip: 'Candidate reappeared after being omitted in an earlier round; cross-round continuity cannot be established solely from title equality.',
+    ambiguousRoundIsolatedNotice: 'Round-isolated candidate; not linked across rounds.',
+
+    // Stage 6B-4B-3F: Explicit Hypothesis Identity Semantics & Export Completeness
+    heuristicTitleMatchBadge: 'Title-Matched Track',
+    heuristicTitleMatchTooltip: 'Matched across rounds based on title equality. Continuity is a heuristic, not an independently verified physical identity.',
+    heuristicTrackingExplanation: 'Identical titles are used as a tracking heuristic across rounds.',
+    heuristicNotConfirmedNotice: 'Hypothesis continuity does not constitute physical fault confirmation.',
+    matrixDeltaUpTooltip: 'Confidence increased',
+    matrixDeltaDownTooltip: 'Confidence decreased',
+    matrixDeltaSameTooltip: 'Confidence maintained',
+    matrixOverallDeltaUpTooltip: 'Overall confidence increased',
+    matrixOverallDeltaDownTooltip: 'Overall confidence decreased',
+    exportInitialOnly: 'Initial assessment only',
+    exportNoEvidenceRecorded: 'No physical test measurements or checks were recorded for this investigation.',
+    exportInitialReasoningHeading: 'Initial Deductive Reasoning & Proposed Checks',
+    exportTechnicianEvidenceHeading: 'Chronological, immutable record of physical measurements and checks conducted on the bench.',
+    exportDefaultSafetyNotice: 'Standard unpowered electrical safety procedures apply.',
+    exportDefaultLimitationsNotice: 'No explicit operational limitations logged.',
+    viewMeasurementRecordTooltip: 'View measurement record',
+
+    // Stage 6B-5B: Compact Investigation Header & Workspace Shell
+    healthPopoverTitle: 'Backend Service Status',
+    healthPopoverClose: 'Close',
+    subnavAriaLabel: 'Diagnostic workstation views',
+    investigationRound: 'Round',
+    statusActiveAssessment: 'Active Diagnosis',
+    statusReassessed: 'Reassessed',
+    compactNewInvestigation: 'New Investigation',
+    compactEditSymptoms: 'Edit Symptoms',
+
+    // Stage 6B-5C: Desktop Split Diagnostic Workbench
+    inspectionRailAriaLabel: 'Circuit inspection workstation',
+    workflowRailAriaLabel: 'Diagnostic reasoning and troubleshooting workflow',
+    crossReferenceHint: 'Click to cross-reference with circuit photograph',
+    crossReferenceClear: 'Click to clear cross-reference',
+    initialTelemetryCardTitle: 'Initial Diagnosis Operational Telemetry',
+
+    // Stage 6B-5E: Mobile Bottom Action Dock
+    mobileDockAriaLabel: 'Mobile investigation navigation and actions',
+    dockNavOverview: 'Overview',
+    dockNavMatrix: 'Matrix',
+    dockNavTimeline: 'Timeline',
+    dockNavReport: 'Report',
+    dockActionLogEvidence: 'Log Evidence',
+    dockActionReassess: 'Reassess',
+    dockActionReassessing: 'Reassessing...',
+
+    // Stage 6C-2C: Local-First Investigation Workspace & Persistence
+    workspaceTitle: 'Investigation Workspace',
+    workspaceSubtitle: 'Local-first diagnostic ledger, physical bench evidence history, and active circuit cases.',
+    newInvestigationAction: 'New Investigation',
+    allInvestigationsBtn: 'All Investigations',
+    searchInvestigationsPlaceholder: 'Search cases by board name, notes, or fault symptoms...',
+    filterAll: 'All Cases',
+    filterUnderInvestigation: 'Under Investigation',
+    filterAwaitingEvidence: 'Awaiting Evidence',
+    filterAssessmentUpdated: 'Assessment Updated',
+    filterResolved: 'Resolved',
+    filterArchived: 'Archived',
+    noInvestigationsFound: 'No investigations found matching your search filter.',
+    noSavedInvestigationsTitle: 'No Saved Investigations Yet',
+    noSavedInvestigationsDesc: 'Create a new circuit investigation to capture optical defects, record multimeter/scope bench measurements, and track AI reassessment cycles.',
+    savedLocallyNotice: 'Saved locally in browser IndexedDB',
+    privacyNotice: 'Local-First Privacy: All circuit photos, diagnostic hypotheses, and bench measurements remain solely on this device. No cloud sync or external telemetry.',
+    saveStatusSaving: 'Saving...',
+    saveStatusSaved: 'Saved locally',
+    saveStatusError: 'Storage Error',
+    deleteConfirmTitle: 'Permanently Delete Case?',
+    deleteConfirmMsg: 'This action will permanently remove this circuit investigation, including all bench measurements, optical crops, and report history from this browser. This cannot be undone.',
+    deleteBtn: 'Delete Case',
+    archiveBtn: 'Archive',
+    unarchiveBtn: 'Unarchive',
+    openInvestigationBtn: 'Open Investigation',
+    renameInvestigationBtn: 'Rename Case',
+    lastModifiedLabel: 'Last updated',
+    evidenceCountLabel: 'evidence items',
+    reassessmentsCountLabel: 'reassessment cycles',
+    backToDashboardBtn: 'Dashboard',
+    markResolvedBtn: 'Mark as Resolved',
+    reopenCaseBtn: 'Reopen Case',
+    statusNew: 'New Case',
+    statusUnderInvestigation: 'Under Investigation',
+    statusAwaitingEvidence: 'Awaiting Evidence',
+    statusAssessmentUpdated: 'Assessment Updated',
+    statusResolved: 'Resolved',
+    saveRenameBtn: 'Save Name',
+    cancelBtn: 'Cancel',
+
+    // Stage 6C-3A: Contextual Investigation Assistant
+    assistantPanelTitle: 'Case Assistant',
+    assistantPanelSubtitle: 'Contextual AI discussion for the active circuit investigation',
+    assistantActiveCaseLabel: 'Active Case',
+    assistantOfflineBadge: 'Offline Preview',
+    assistantOfflineNotice: 'Deterministic demonstration mode: Responses are derived from active case evidence without third-party model inference.',
+    assistantSuggestedHeading: 'Suggested Technical Questions',
+    assistantSuggestLeading: 'Explain the leading fault hypothesis',
+    assistantSuggestUnconfirmed: 'Why has this hypothesis not been confirmed?',
+    assistantSuggestLatestMeasure: 'Interpret the latest measurement cautiously',
+    assistantSuggestNext: 'What should I investigate next?',
+    assistantSuggestDistinguish: 'What evidence would distinguish the remaining hypotheses?',
+    assistantSuggestEvolution: 'Summarize how the assessment changed after the latest evidence',
+    assistantInputPlaceholder: 'Ask about hypotheses, bench readings, or component isolation...',
+    assistantSendBtn: 'Send',
+    assistantSending: 'Analyzing context...',
+    assistantKeyboardHint: 'Press Enter to send, Shift+Enter for newline',
+    assistantEmptyHistory: 'No messages yet for this investigation. Select a suggested question above or type your inquiry below.',
+    assistantClearHistory: 'Clear conversation',
+    assistantRetryBtn: 'Retry',
+    assistantCloseBtn: 'Close assistant',
+    assistantToggleBtn: 'Case Assistant',
+    assistantMessagesCount: 'messages',
+    assistantLiveBadge: 'Live AI',
+    assistantLiveNotice: 'Generated by live model inference provider.',
+    assistantPersistenceError: 'Message could not be saved to local storage.',
+    assistantRetrySaveBtn: 'Retry Save',
+    assistantUnsavedPill: 'Unsaved',
   },
   es: {
     brandName: 'CircuitLens',
     brandTagline: 'Sistema de Diagnóstico de Circuitos Asistido por IA',
-    stageBadge: 'Etapa 4 • Diagnóstico Basado en Evidencia',
+    stageBadge: 'Banco de Diagnóstico',
+    heroTag: 'Inteligencia para Hardware',
+    intakeBadge: 'Admisión de Diagnóstico',
     stageTitle: 'Banco de Diagnóstico de Circuitos por IA',
     stageSubtitle: 'Análisis visual de defectos en PCB, razonamiento de hipótesis de falla y procedimientos ordenados de inspección segura.',
     systemStatusTitle: 'Diagnóstico de Subsistemas',
@@ -484,7 +974,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
     serviceLabel: 'Identificador del Servicio',
     latencyLabel: 'Latencia de Respuesta',
     timestampLabel: 'Latido del Servidor',
-    targetModelLabel: 'Modelo Meta IA Objetivo',
+    targetModelLabel: 'Modelo IA Objetivo',
     apiProxyStatusLabel: 'Canal Proxy Vite',
     apiProxyVerified: 'Activo (/api -> :4000)',
     nextStagesTitle: 'Flujo de Diagnóstico y Capacidades',
@@ -536,10 +1026,10 @@ export const translations: Record<SupportedLanguage, Translations> = {
     notesLabel: 'Notas Adicionales de Diagnóstico',
     notesOptional: '(Opcional)',
     notesPlaceholder: 'ej., La placa sufrió una caída antes de fallar; se midió 0.2V en el punto TP1...',
-    reviewInvestigationBtn: 'Revisar y Preparar Entrada',
-    stagedConfirmationTitle: 'Perfil de Entrada Preparado en Memoria',
-    stagedConfirmationNotice: 'La imagen del circuito, los síntomas y los componentes sospechosos están preparados localmente en memoria.',
-    stagedReadyBadge: 'Listo para Diagnóstico IA',
+    reviewInvestigationBtn: 'Revisar Detalles',
+    stagedConfirmationTitle: 'Revisión de la Investigación',
+    stagedConfirmationNotice: 'Verifique la foto de la placa y los síntomas antes de iniciar el diagnóstico multimodal.',
+    stagedReadyBadge: 'Listo para Análisis',
     stagedBoardLabel: 'Nombre de Placa',
     stagedImageLabel: 'Foto de Evidencia',
     stagedExpectedLabel: 'Comportamiento Esperado',
@@ -563,7 +1053,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
     // Stage 3: AI Diagnostics & Results
     startDiagnosisBtn: 'Ejecutar Diagnóstico con IA',
     diagnosingProgressTitle: 'Analizando Placa de Circuito...',
-    diagnosingProgressSubtitle: 'Transmitiendo la fotografía y el perfil de síntomas al modelo Meta IA para análisis multimodal de defectos y fallas.',
+    diagnosingProgressSubtitle: 'Transmitiendo la fotografía y el perfil de síntomas para el análisis multimodal de defectos y fallas.',
     diagnosingTip: 'El razonamiento visual y la verificación de seguridad suelen tardar entre 5 y 20 segundos. No cierre esta ventana.',
     cancelDiagnosisBtn: 'Cancelar Diagnóstico',
     retryDiagnosisBtn: 'Reintentar Diagnóstico',
@@ -571,9 +1061,9 @@ export const translations: Record<SupportedLanguage, Translations> = {
     newInvestigationBtn: 'Nueva Investigación de Circuito',
     confirmNewInvestigation: '¿Desea iniciar una nueva investigación? Los resultados diagnósticos y la imagen actual se borrarán.',
     diagnosisErrorTitle: 'Error en el Análisis Diagnóstico',
-    missingApiKeyErrorNotice: 'La clave de Meta Model API no está configurada en el servidor. Agregue MODEL_API_KEY al archivo .env del servidor.',
+    missingApiKeyErrorNotice: 'La clave de Model API no está configurada en el servidor. Agregue MODEL_API_KEY al archivo .env del servidor.',
     networkErrorNotice: 'No se pudo conectar con el servicio backend de diagnóstico. Verifique que el servidor esté activo en el puerto 4000.',
-    rateLimitErrorNotice: 'Límite de peticiones de Meta Model API alcanzado. Espere unos momentos antes de reintentar.',
+    rateLimitErrorNotice: 'Límite de peticiones de Model API alcanzado. Espere unos momentos antes de reintentar.',
     timeoutErrorNotice: 'La solicitud de diagnóstico excedió el tiempo límite. El modelo tardó demasiado en completar la inferencia visual.',
     genericErrorNotice: 'Ocurrió un error inesperado durante el diagnóstico. Sus síntomas ingresados y la imagen se han preservado.',
     outputLimitErrorNotice: 'El modelo alcanzó el límite máximo de tokens de salida antes de completar el diagnóstico. Proporcione notas de entrada más concisas o comuníquese con soporte.',
@@ -582,8 +1072,8 @@ export const translations: Record<SupportedLanguage, Translations> = {
     modelRefusalErrorNotice: 'El modelo se negó a procesar esta solicitud de diagnóstico. Revise la imagen y la descripción de síntomas para verificar el cumplimiento de las pautas de seguridad.',
 
     resultsSectionTitle: 'Informe Diagnóstico de Circuitos con IA',
-    resultsSectionSubtitle: 'Análisis de fallas electrónicas con múltiples hipótesis impulsado por razonamiento multimodal de Meta.',
-    resultsBadge: 'Diagnóstico Etapa 3',
+    resultsSectionSubtitle: 'Análisis de fallas electrónicas con múltiples hipótesis impulsado por razonamiento multimodal.',
+    resultsBadge: 'Evaluación Inicial (R0)',
     executiveSummaryTitle: 'Resumen Ejecutivo',
     visibleObservationsTitle: 'Observaciones Ópticas Directas',
     visibleObservationsSubtitle: 'Características físicas visibles directamente en la placa, claramente separadas de las causas inferidas.',
@@ -660,7 +1150,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
     // Stage 4B-4: Reassessment Controls & Results
     reassessButton: 'Solicitar reevaluación diagnóstica',
     reassessingProgressTitle: 'Reevaluando hipótesis diagnósticas...',
-    reassessingProgressSubtitle: 'Sintetizando evidencia física y refinando probabilidades de falla con Meta AI.',
+    reassessingProgressSubtitle: 'Sintetizando evidencia física y actualizando probabilidades de falla.',
     reassessmentReadyNotice: 'La evidencia de banco registrada está lista para la reevaluación diagnóstica.',
     noEvidenceForReassessmentNotice: 'Registre al menos 1 resultado de verificación para solicitar la reevaluación por IA.',
     evidenceLimitExceededNotice: 'El punto de conexión actual acepta hasta 20 registros de evidencia. Su investigación contiene actualmente {count} registros. La reevaluación está pausada para preservar el historial completo sin truncamiento.',
@@ -700,11 +1190,255 @@ export const translations: Record<SupportedLanguage, Translations> = {
     hardwareAccessDisclaimer: 'CircuitLens no tiene acceso directo al hardware físico. Las pruebas físicas, mediciones y cambios de componentes que se muestran aquí se basan en la información reportada por el técnico.',
     evidenceCitationSuperseded: 'Reemplazado',
     evidenceCitationSupersededHint: 'Esta medición o verificación fue reemplazada por un registro de prueba posterior.',
+
+    // Stage 6B-3: Operational Telemetry & Cost Transparency
+    telemetrySectionTitle: 'Telemetría Operativa y Uso',
+    telemetrySectionSubtitle: 'Métricas de latencia de inferencia, modelo de proveedor, procesamiento de tokens y costo estimado.',
+    telemetryDiagnosisTitle: 'Telemetría del Diagnóstico',
+    telemetryReassessmentTitle: 'Telemetría de Reevaluación',
+    telemetryProviderLabel: 'Proveedor de IA',
+    telemetryModelLabel: 'Modelo',
+    telemetryDurationLabel: 'Latencia',
+    telemetryInputTokensLabel: 'Tokens de Entrada',
+    telemetryOutputTokensLabel: 'Tokens de Salida',
+    telemetryTotalTokensLabel: 'Tokens Totales',
+    telemetryEstimatedCostLabel: 'Costo Estimado',
+    telemetryPartialCostLabel: 'Subtotal de Costo Parcial',
+    telemetryPartialCostBadge: 'Parcial: {cost}',
+    telemetryPartialCostDisclaimer: 'Uso incompleto reportado por el proveedor. El costo mostrado es un subtotal parcial, no el costo total del pedido.',
+    telemetryCostDisclaimer: 'Estimado según las tarifas de tokens publicadas por el proveedor. La facturación real puede variar.',
+    telemetryUnavailable: 'No disponible',
+    telemetryDetailsSummary: 'Telemetría Operativa',
+    telemetryStatusReported: 'Reportado por Proveedor',
+    telemetryStatusPartial: 'Uso Parcial Reportado',
+    telemetryStatusUnavailable: 'Uso No Disponible',
+
+    // Stage 6B-4B-1: Interactive Circuit Image Inspection
+    inspectorTitle: 'Inspección Visual del Circuito',
+    inspectorSubtitle: 'Inspeccione pistas de PCB, serigrafía y soldaduras junto a las observaciones de la IA.',
+    inspectorZoomIn: 'Acercar (+)',
+    inspectorZoomOut: 'Alejar (-)',
+    inspectorFit: 'Ajustar a Vista',
+    inspectorReset100: 'Escala 100% Nativa',
+    inspectorFullscreen: 'Inspección en Pantalla Completa',
+    inspectorExitFullscreen: 'Salir de Pantalla Completa',
+    inspectorZoomLevel: 'Zoom',
+    inspectorPanHint: 'Arrastre para desplazarse por la placa de circuito',
+    inspectorSelectedObservation: 'Observación Visual Referenciada',
+    inspectorClearObservation: 'Borrar Selección',
+    inspectorToggleDrawer: 'Inspeccionar Foto del Circuito',
+    inspectorCloseDrawer: 'Cerrar Inspector',
+    inspectorOriginalImageBadge: 'Resolución Original',
+
+    // Stage 6B-4B-2: Professional Diagnostic Report Export
+    exportSectionTitle: 'Informe Diagnóstico y Exportación',
+    exportSectionSubtitle: 'Exporte informes de laboratorio completos para registros técnicos, tickets o entrega a clientes.',
+    exportPrintPdfBtn: 'Imprimir / Guardar como PDF',
+    exportJsonBtn: 'Descargar JSON',
+    exportMarkdownBtn: 'Descargar Markdown (.md)',
+    exportReportBadge: 'Informe Listo',
+    exportEpistemicNotice: 'Los informes de diagnóstico documentan el razonamiento visual remoto de IA y las mediciones de banco del técnico. Las fallas sospechosas son hipótesis analíticas, no causas raíz confirmadas físicamente sin aislamiento de componentes.',
+    exportReportHeaderTitle: 'Informe Diagnóstico CircuitLens',
+    exportInvestigationIdLabel: 'ID de Investigación',
+    exportGeneratedAtLabel: 'Generado',
+    exportDeviceSectionTitle: 'Información del Circuito y Admisión',
+    exportObservationsSectionTitle: 'Observaciones Ópticas Directas',
+    exportHypothesesSectionTitle: 'Hipótesis de Falla y Evolución',
+    exportEvidenceSectionTitle: 'Libro de Evidencias del Técnico',
+    exportReassessmentsSectionTitle: 'Hallazgos y Síntesis de Reevaluación',
+    exportChecksSectionTitle: 'Verificaciones de Diagnóstico Recomendadas',
+    exportSafetySectionTitle: 'Precauciones de Seguridad Eléctrica',
+    exportLimitationsSectionTitle: 'Limitaciones y Dudas Diagnósticas',
+    exportTelemetrySectionTitle: 'Telemetría de Inferencia y Uso de Tokens',
+    exportOriginAi: 'ANÁLISIS GENERADO POR IA',
+    exportOriginTech: 'REGISTRO DE BANCO DEL TÉCNICO',
+    exportOriginSystem: 'METADATOS DEL SISTEMA',
+
+    // Stage 6B-4B-3: Hypothesis Evolution & Evidence Timeline
+    evolutionMatrixTitle: 'Matriz de Evolución de Hipótesis',
+    evolutionMatrixSubtitle: 'Seguimiento comparativo de candidatos de falla en el diagnóstico inicial y todas las rondas de reevaluación.',
+    evolutionEpistemicNotice: 'Las evaluaciones históricas de hipótesis documentan deducciones visuales remotas de IA basadas en mediciones de banco acumuladas. Las hipótesis respaldadas son deducciones analíticas, nunca causas raíz confirmadas físicamente sin aislamiento de componentes.',
+    matrixCycleInitialOnly: 'Evaluación Inicial (R0)',
+    matrixCyclesLogged: 'Rondas',
+    matrixColHypothesis: 'Candidato de Hipótesis de Falla',
+    matrixColInitial: 'Inicial (R0)',
+    matrixColRoundPrefix: 'Ronda',
+    matrixColCurrent: 'Estado Actual',
+    matrixIntroducedInPrefix: 'Introducida en',
+    matrixShowDetails: 'Ver justificación',
+    matrixHideDetails: 'Ocultar justificación',
+    matrixInitialReasoningLabel: 'Deducción Inicial',
+    matrixStatusNotPresent: '—',
+    matrixStatusOmitted: 'Omitida',
+    matrixDeltaUp: 'Subió',
+    matrixDeltaDown: 'Bajó',
+    matrixCitationsCount: 'citas totales',
+    timelineTitle: 'Línea de Tiempo de Evidencias y Diagnóstico',
+    timelineSubtitle: 'Pista de auditoría cronológica de pruebas de banco físicas, mediciones reemplazadas y síntesis de IA.',
+    timelineEventsLogged: 'Hitos',
+    timelineSourceAi: 'GENERADO POR IA',
+    timelineSourceTech: 'BANCO DEL TÉCNICO',
+    timelineSourceSystem: 'METADATOS DEL SISTEMA',
+    timelineTimestampMissing: 'Hora no registrada',
+    timelineInitialTag: 'Ciclo R0 (Inicial)',
+    timelineSupersededBadge: '[REEMPLAZADA]',
+    timelineInconclusiveNotice: 'Resultado no concluyente: no prueba ni refuta hipótesis',
+    timelineUnableNotice: 'No se pudo realizar la prueba según lo especificado',
+    timelineRecordedMeasurement: 'Valor Registrado',
+    timelineJumpToSuperseding: 'Ir al intento de reemplazo',
+    timelineHypothesisChangesTitle: 'Cambios de Estado Evaluados',
+    timelineSafetyAlert: 'Precauciones de Seguridad',
+    currentAssessmentTitle: 'Síntesis del Estado de Diagnóstico Actual',
+    currentAssessmentSubtitle: 'Resumen ejecutivo de plausibilidad de tres estados basado en mediciones de banco acumuladas.',
+    navToMatrixBtn: 'Ver Matriz de Evolución',
+    navToTimelineBtn: 'Ver Línea de Tiempo',
+    assessmentEpistemicHeader: 'Barrera Epistémica',
+    assessmentEpistemicNotice: 'Las hipótesis respaldadas representan plausibilidad analítica corroborada por lecturas de pruebas de banco. NUNCA son causas raíz confirmadas físicamente sin aislamiento y desoldado de componentes.',
+    noSupportedHypotheses: 'Ninguna hipótesis respaldada por la evidencia actual.',
+    noContradictedHypotheses: 'Ninguna hipótesis descartada por pruebas de banco todavía.',
+    noUnresolvedHypotheses: 'No quedan candidatos de falla sin resolver.',
+    strongestSupportingEvidenceTitle: 'Evidencia Corroborante Decisiva',
+    importantContradictoryEvidenceTitle: 'Evidencia Contradictoria Decisiva',
+    outstandingChecksTitle: 'Siguientes Pruebas de Verificación Prioritarias',
+    criticalSafetyTitle: 'Precauciones Críticas de Seguridad Eléctrica',
+    subnavOverview: 'Visión General',
+    subnavMatrix: 'Matriz de Evolución',
+    subnavTimeline: 'Línea de Tiempo',
+    subnavReport: 'Exportar Informe',
+
+    // Stage 6B-4B-3D: Ambiguous Hypothesis Decoupling & Localization
+    ambiguousIdentityBadge: 'Identidad Ambigua',
+    ambiguousIdentityTooltip: 'Múltiples candidatos comparten este título. La identidad no puede rastrearse con certeza entre rondas.',
+    ambiguousMultipleCandidatesNotice: 'Múltiples candidatos comparten este título; la identidad no puede establecerse entre rondas.',
+    ambiguousCannotEstablishAcrossRounds: 'No se puede establecer la identidad entre rondas de diagnóstico.',
+    ambiguousNoTrendNotice: 'No se muestra tendencia de confianza debido a que la identidad entre rondas es incierta.',
+    ambiguousGroupHeader: 'Candidatos Ambiguos Específicos de la Ronda',
+    ambiguousGroupSubtitle: 'Estos candidatos de falla comparten títulos idénticos en la misma ronda. Se documentan de forma independiente sin inferir continuidad entre rondas.',
+    ambiguousReappearanceBadge: 'Reaparecido (Identidad Incierta)',
+    ambiguousReappearanceTooltip: 'El candidato reapareció tras haber sido omitido en una ronda anterior; la continuidad no puede establecerse únicamente por igualdad de título.',
+    ambiguousRoundIsolatedNotice: 'Candidato aislado de la ronda; no vinculado entre rondas.',
+
+    // Stage 6B-4B-3F: Explicit Hypothesis Identity Semantics & Export Completeness
+    heuristicTitleMatchBadge: 'Seguimiento por Título',
+    heuristicTitleMatchTooltip: 'Emparejado entre rondas según la igualdad de títulos. La continuidad es una heurística, no una identidad física verificada independientemente.',
+    heuristicTrackingExplanation: 'Los títulos idénticos se utilizan como heurística de seguimiento entre rondas.',
+    heuristicNotConfirmedNotice: 'La continuidad de la hipótesis no constituye una confirmación física de la falla.',
+    matrixDeltaUpTooltip: 'Confianza incrementada',
+    matrixDeltaDownTooltip: 'Confianza disminuida',
+    matrixDeltaSameTooltip: 'Confianza mantenida',
+    matrixOverallDeltaUpTooltip: 'Confianza general incrementada',
+    matrixOverallDeltaDownTooltip: 'Confianza general disminuida',
+    exportInitialOnly: 'Evaluación inicial únicamente',
+    exportNoEvidenceRecorded: 'No se registraron mediciones ni verificaciones físicas de prueba para esta investigación.',
+    exportInitialReasoningHeading: 'Razonamiento Deductivo Inicial y Pruebas Propuestas',
+    exportTechnicianEvidenceHeading: 'Registro cronológico e inmutable de mediciones y pruebas físicas realizadas en el banco de trabajo.',
+    exportDefaultSafetyNotice: 'Se aplican los procedimientos estándar de seguridad eléctrica sin energía.',
+    exportDefaultLimitationsNotice: 'No se registraron limitaciones operativas explícitas.',
+    viewMeasurementRecordTooltip: 'Ver registro de medición',
+
+    // Stage 6B-5B: Compact Investigation Header & Workspace Shell
+    healthPopoverTitle: 'Estado del servicio backend',
+    healthPopoverClose: 'Cerrar',
+    subnavAriaLabel: 'Vistas de la estación diagnóstica',
+    investigationRound: 'Ronda',
+    statusActiveAssessment: 'Diagnóstico activo',
+    statusReassessed: 'Reevaluado',
+    compactNewInvestigation: 'Nueva investigación',
+    compactEditSymptoms: 'Editar síntomas',
+
+    // Stage 6B-5C: Desktop Split Diagnostic Workbench
+    inspectionRailAriaLabel: 'Estación de inspección de circuitos',
+    workflowRailAriaLabel: 'Flujo de diagnóstico y resolución de problemas',
+    crossReferenceHint: 'Haga clic para cotejar con la fotografía del circuito',
+    crossReferenceClear: 'Haga clic para borrar el cotejo',
+    initialTelemetryCardTitle: 'Telemetría operativa del diagnóstico inicial',
+
+    // Stage 6B-5E: Mobile Bottom Action Dock
+    mobileDockAriaLabel: 'Navegación y acciones móviles de investigación',
+    dockNavOverview: 'Visión',
+    dockNavMatrix: 'Matriz',
+    dockNavTimeline: 'Línea',
+    dockNavReport: 'Informe',
+    dockActionLogEvidence: 'Registrar',
+    dockActionReassess: 'Reevaluar',
+    dockActionReassessing: 'Reevaluando...',
+
+    // Stage 6C-2C: Local-First Investigation Workspace & Persistence
+    workspaceTitle: 'Panel de Investigaciones',
+    workspaceSubtitle: 'Historial diagnóstico local, registro de evidencia física de banco y casos activos.',
+    newInvestigationAction: 'Nueva Investigación',
+    allInvestigationsBtn: 'Todas las Investigaciones',
+    searchInvestigationsPlaceholder: 'Buscar por nombre de placa, notas o síntomas...',
+    filterAll: 'Todos los Casos',
+    filterUnderInvestigation: 'En Investigación',
+    filterAwaitingEvidence: 'Esperando Evidencia',
+    filterAssessmentUpdated: 'Evaluación Actualizada',
+    filterResolved: 'Resuelto',
+    filterArchived: 'Archivado',
+    noInvestigationsFound: 'No se encontraron investigaciones que coincidan con su búsqueda.',
+    noSavedInvestigationsTitle: 'Aún no hay investigaciones guardadas',
+    noSavedInvestigationsDesc: 'Inicie un nuevo caso para capturar defectos ópticos, registrar mediciones de banco y seguir los ciclos de reevaluación por IA.',
+    savedLocallyNotice: 'Guardado localmente en IndexedDB del navegador',
+    privacyNotice: 'Privacidad local: Todas las fotos, hipótesis y mediciones permanecen exclusivamente en este dispositivo.',
+    saveStatusSaving: 'Guardando...',
+    saveStatusSaved: 'Guardado localmente',
+    saveStatusError: 'Error de almacenamiento',
+    deleteConfirmTitle: '¿Eliminar caso permanentemente?',
+    deleteConfirmMsg: 'Esta acción eliminará de forma permanente esta investigación, incluyendo mediciones, fotos y reportes de este navegador. No se puede deshacer.',
+    deleteBtn: 'Eliminar Caso',
+    archiveBtn: 'Archivar',
+    unarchiveBtn: 'Desarchivar',
+    openInvestigationBtn: 'Abrir Caso',
+    renameInvestigationBtn: 'Renombrar Caso',
+    lastModifiedLabel: 'Última actualización',
+    evidenceCountLabel: 'elementos de evidencia',
+    reassessmentsCountLabel: 'ciclos de reevaluación',
+    backToDashboardBtn: 'Panel de Casos',
+    markResolvedBtn: 'Marcar como Resuelto',
+    reopenCaseBtn: 'Reabrir Caso',
+    statusNew: 'Nuevo Caso',
+    statusUnderInvestigation: 'En Investigación',
+    statusAwaitingEvidence: 'Esperando Evidencia',
+    statusAssessmentUpdated: 'Evaluación Actualizada',
+    statusResolved: 'Resuelto',
+    saveRenameBtn: 'Guardar Nombre',
+    cancelBtn: 'Cancelar',
+
+    // Stage 6C-3A: Contextual Investigation Assistant
+    assistantPanelTitle: 'Asistente del Caso',
+    assistantPanelSubtitle: 'Discusión contextual de IA para la investigación de circuito activa',
+    assistantActiveCaseLabel: 'Caso Activo',
+    assistantOfflineBadge: 'Vista Previa sin Conexión',
+    assistantOfflineNotice: 'Modo de demostración determinista: Las respuestas se derivan de la evidencia del caso activo sin inferencia de modelos de terceros.',
+    assistantSuggestedHeading: 'Preguntas Técnicas Sugeridas',
+    assistantSuggestLeading: 'Explicar la hipótesis de fallo principal',
+    assistantSuggestUnconfirmed: '¿Por qué no se ha confirmado esta hipótesis?',
+    assistantSuggestLatestMeasure: 'Interpretar la última medición con cautela',
+    assistantSuggestNext: '¿Qué debo investigar a continuación?',
+    assistantSuggestDistinguish: '¿Qué evidencia distinguiría las hipótesis restantes?',
+    assistantSuggestEvolution: 'Resumir cómo cambió la evaluación tras la última evidencia',
+    assistantInputPlaceholder: 'Pregunte sobre hipótesis, lecturas de banco o aislamiento de componentes...',
+    assistantSendBtn: 'Enviar',
+    assistantSending: 'Analizando contexto...',
+    assistantKeyboardHint: 'Presione Enter para enviar, Shift+Enter para nueva línea',
+    assistantEmptyHistory: 'Aún no hay mensajes para esta investigación. Seleccione una pregunta sugerida o escriba su consulta.',
+    assistantClearHistory: 'Borrar conversación',
+    assistantRetryBtn: 'Reintentar',
+    assistantCloseBtn: 'Cerrar asistente',
+    assistantToggleBtn: 'Asistente del Caso',
+    assistantMessagesCount: 'mensajes',
+    assistantLiveBadge: 'IA en vivo',
+    assistantLiveNotice: 'Generado por el proveedor de inferencia de modelo en vivo.',
+    assistantPersistenceError: 'No se pudo guardar el mensaje en el almacenamiento local.',
+    assistantRetrySaveBtn: 'Reintentar guardar',
+    assistantUnsavedPill: 'No guardado',
   },
   ar: {
     brandName: 'CircuitLens',
     brandTagline: 'نظام تشخيص واستكشاف أعطال الدوائر الإلكترونية بالذكاء الاصطناعي',
-    stageBadge: 'المرحلة 4 • تشخيص قائم على الأدلة',
+    stageBadge: 'منصة تشخيص الأعطال',
+    heroTag: 'ذكاء العتاد الإلكتروني',
+    intakeBadge: 'استقبال التشخيص',
     stageTitle: 'منصة تشخيص الدوائر الإلكترونية بالذكاء الاصطناعي',
     stageSubtitle: 'تحليل بصري عالي الدقة لعيوب اللوحات، واستدلال متعدد الفرضيات للأعطال، وإجراءات فحص أمان مرتبة بدقة.',
     systemStatusTitle: 'تشخيص الأنظمة الفرعية',
@@ -716,7 +1450,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
     serviceLabel: 'معرّف الخدمة',
     latencyLabel: 'زمن الاستجابة',
     timestampLabel: 'نبض الخادم',
-    targetModelLabel: 'نموذج Meta AI المستهدف',
+    targetModelLabel: 'نموذج الذكاء الاصطناعي المستهدف',
     apiProxyStatusLabel: 'مسار وكيل Vite',
     apiProxyVerified: 'نشط (/api -> :4000)',
     nextStagesTitle: 'مسار التشخيص والقدرات الأساسية',
@@ -768,10 +1502,10 @@ export const translations: Record<SupportedLanguage, Translations> = {
     notesLabel: 'ملاحظات تشخيصية إضافية',
     notesOptional: '(اختياري)',
     notesPlaceholder: 'مثال: سقطت اللوحة قبل حدوث العطل مباشرة؛ تم قياس 0.2V عند النقطة TP1...',
-    reviewInvestigationBtn: 'مراجعة وتجهيز بيانات الفحص',
-    stagedConfirmationTitle: 'تم تجهيز بيانات الفحص في الذاكرة',
-    stagedConfirmationNotice: 'صورة الدائرة وتوصيف الأعراض والمكونات المشتبه بها جاهزة ومخزنة محلياً في الذاكرة.',
-    stagedReadyBadge: 'جاهز للتشخيص بالذكاء الاصطناعي',
+    reviewInvestigationBtn: 'مراجعة تفاصيل الفحص',
+    stagedConfirmationTitle: 'مراجعة إعداد الفحص',
+    stagedConfirmationNotice: 'تحقق من صورة اللوحة وتفاصيل الأعراض قبل بدء الفحص بالذكاء الاصطناعي.',
+    stagedReadyBadge: 'جاهز للتحليل',
     stagedBoardLabel: 'اسم اللوحة',
     stagedImageLabel: 'صورة الفحص',
     stagedExpectedLabel: 'السلوك المتوقع',
@@ -795,7 +1529,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
     // Stage 3: AI Diagnostics & Results
     startDiagnosisBtn: 'بدء التشخيص بالذكاء الاصطناعي',
     diagnosingProgressTitle: 'جارٍ تحليل لوحة الدائرة الإلكترونية...',
-    diagnosingProgressSubtitle: 'جارٍ إرسال صورة اللوحة وملف الأعراض إلى نموذج Meta AI لإجراء الفحص البصري والاستدلالي للأعطال.',
+    diagnosingProgressSubtitle: 'جارٍ إرسال صورة اللوحة وملف الأعراض لإجراء الفحص البصري والاستدلالي للأعطال.',
     diagnosingTip: 'يستغرق الاستدلال البصري والتحقق من السلامة عادة ما بين 5 إلى 20 ثانية. يُرجى عدم إغلاق هذه الصفحة.',
     cancelDiagnosisBtn: 'إلغاء التشخيص',
     retryDiagnosisBtn: 'إعادة محاولة التشخيص',
@@ -803,9 +1537,9 @@ export const translations: Record<SupportedLanguage, Translations> = {
     newInvestigationBtn: 'فحص دارة جديدة',
     confirmNewInvestigation: 'هل ترغب في بدء فحص جديد؟ سيتم مسح نتائج التشخيص الحالية والصورة المدخلة.',
     diagnosisErrorTitle: 'خطأ في عملية التشخيص',
-    missingApiKeyErrorNotice: 'مفتاح Meta Model API غير مهيأ في الخادم. يُرجى إضافة MODEL_API_KEY إلى ملف .env في الخادم.',
+    missingApiKeyErrorNotice: 'مفتاح Model API غير مهيأ في الخادم. يُرجى إضافة MODEL_API_KEY إلى ملف .env في الخادم.',
     networkErrorNotice: 'تعذر الاتصال بخدمة التشخيص الخلفية. يُرجى التأكد من تشغيل خادم Node.js على المنفذ 4000.',
-    rateLimitErrorNotice: 'تم بلوغ الحد الأقصى لمعدل الطلبات في Meta Model API. يُرجى الانتظار قليلاً ثم المحاولة مجدداً.',
+    rateLimitErrorNotice: 'تم بلوغ الحد الأقصى لمعدل الطلبات في Model API. يُرجى الانتظار قليلاً ثم المحاولة مجدداً.',
     timeoutErrorNotice: 'انتهت مهلة طلب التشخيص. استغرق النموذج وقتاً طويلاً لإتمام المعالجة البصرية.',
     genericErrorNotice: 'حدث خطأ غير متوقع أثناء معالجة التشخيص. تم حفظ بيانات الأعراض والصورة المدخلة بأمان.',
     outputLimitErrorNotice: 'وصل النموذج إلى الحد الأقصى لرموز الإخراج قبل إكمال التشخيص. يرجى تقديم ملاحظات أكثر إيجازًا أو الاتصال بالدعم.',
@@ -814,8 +1548,8 @@ export const translations: Record<SupportedLanguage, Translations> = {
     modelRefusalErrorNotice: 'رفض النموذج معالجة طلب التشخيص هذا. يرجى مراجعة الصورة ووصف الأعراض للتأكد من التوافق مع إرشادات السلامة.',
 
     resultsSectionTitle: 'تقرير تشخيص الدائرة بالذكاء الاصطناعي',
-    resultsSectionSubtitle: 'تحليل متعدد الفرضيات للأعطال الإلكترونية مدعوم بالاستدلال البصري لنموذج Meta AI.',
-    resultsBadge: 'تشخيص المرحلة 3',
+    resultsSectionSubtitle: 'تحليل متعدد الفرضيات للأعطال الإلكترونية مدعوم بالاستدلال البصري متعدد الوسائط.',
+    resultsBadge: 'التقييم الأولي (R0)',
     executiveSummaryTitle: 'ملخص التشخيص',
     visibleObservationsTitle: 'الملاحظات البصرية المباشرة',
     visibleObservationsSubtitle: 'المعالم والعيوب المادية المرئية مباشرة في الصورة، مفصولة تماماً عن استنتاجات الأعطال.',
@@ -892,7 +1626,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
     // Stage 4B-4: Reassessment Controls & Results
     reassessButton: 'طلب إعادة التقييم التشخيصي',
     reassessingProgressTitle: 'جارٍ إعادة تقييم الفرضيات التشخيصية...',
-    reassessingProgressSubtitle: 'تحليل الأدلة المخبرية وتحديث احتمالات الأعطال بواسطة Meta AI.',
+    reassessingProgressSubtitle: 'تحليل الأدلة المخبرية وتحديث احتمالات الأعطال بالذكاء الاصطناعي.',
     reassessmentReadyNotice: 'أدلة الفحص المخبري المسجلة جاهزة لإعادة التقييم التشخيصي.',
     noEvidenceForReassessmentNotice: 'سجّل نتيجة فحص واحدة على الأقل لطلب إعادة التقييم بالذكاء الاصطناعي.',
     evidenceLimitExceededNotice: 'تقبل نقطة نهاية إعادة التقييم الحالية ما يصل إلى 20 سجلاً من الأدلة. يحتوي فحصك حالياً على {count} سجلاً. تم إيقاف إعادة التقييم مؤقتاً للحفاظ على السجل كاملاً دون اقتطاع.',
@@ -932,6 +1666,248 @@ export const translations: Record<SupportedLanguage, Translations> = {
     hardwareAccessDisclaimer: 'لا يمتلك CircuitLens وصولاً مباشراً إلى العتاد المادي. تستند الاختبارات المادية والقياسات وتغييرات المكونات الموضحة هنا إلى المعلومات المسجلة بواسطة الفني.',
     evidenceCitationSuperseded: 'تم استبداله',
     evidenceCitationSupersededHint: 'تم استبدال هذا القياس أو الفحص بسجل اختبار لاحق.',
+
+    // Stage 6B-3: Operational Telemetry & Cost Transparency
+    telemetrySectionTitle: 'القياسات التشغيلية والاستخدام',
+    telemetrySectionSubtitle: 'زمن استجابة الاستدلال، ونموذج المزود، ومعالجة الرموز، ومقاييس التكلفة المقدرة.',
+    telemetryDiagnosisTitle: 'قياسات التشخيص',
+    telemetryReassessmentTitle: 'قياسات إعادة التقييم',
+    telemetryProviderLabel: 'مزود الذكاء الاصطناعي',
+    telemetryModelLabel: 'النموذج',
+    telemetryDurationLabel: 'زمن الاستجابة',
+    telemetryInputTokensLabel: 'رموز الإدخال',
+    telemetryOutputTokensLabel: 'رموز الإخراج',
+    telemetryTotalTokensLabel: 'إجمالي الرموز',
+    telemetryEstimatedCostLabel: 'التكلفة المقدرة',
+    telemetryPartialCostLabel: 'المجموع الجزئي للتكلفة',
+    telemetryPartialCostBadge: 'جزئي: {cost}',
+    telemetryPartialCostDisclaimer: 'بيانات استخدام غير مكتملة مبلّغة من المزود. التكلفة المعروضة هي مجموع جزئي وليست التكلفة الإجمالية للطلب.',
+    telemetryCostDisclaimer: 'تقدير مستند إلى أسعار الرموز المعلنة للمزود. قد تختلف الفاتورة الفعلية.',
+    telemetryUnavailable: 'غير متوفر',
+    telemetryDetailsSummary: 'القياسات التشغيلية',
+    telemetryStatusReported: 'مبلّغ من المزود',
+    telemetryStatusPartial: 'استخدام جزئي مبلّغ',
+    telemetryStatusUnavailable: 'بيانات الاستخدام غير متوفرة',
+
+    // Stage 6B-4B-1: Interactive Circuit Image Inspection
+    inspectorTitle: 'الفحص البصري للوحة الدائرة',
+    inspectorSubtitle: 'افحص مسارات اللوحة والطباعة ونقاط اللحام جنباً إلى جنب مع ملاحظات الذكاء الاصطناعي.',
+    inspectorZoomIn: 'تكبير (+)',
+    inspectorZoomOut: 'تصغير (-)',
+    inspectorFit: 'ملاءمة للشاشة',
+    inspectorReset100: 'المقياس الأصلي 100%',
+    inspectorFullscreen: 'فحص ملء الشاشة',
+    inspectorExitFullscreen: 'خروج من ملء الشاشة',
+    inspectorZoomLevel: 'مستوى التكبير',
+    inspectorPanHint: 'اسحب للتنقل عبر لوحة الدائرة',
+    inspectorSelectedObservation: 'الملاحظة البصرية المحددة',
+    inspectorClearObservation: 'إلغاء التحديد',
+    inspectorToggleDrawer: 'فحص صورة الدائرة',
+    inspectorCloseDrawer: 'إغلاق الفاحص',
+    inspectorOriginalImageBadge: 'الدقة الأصلية',
+
+    // Stage 6B-4B-2: Professional Diagnostic Report Export
+    exportSectionTitle: 'تقرير التشخيص والتصدير',
+    exportSectionSubtitle: 'تصدير تقارير فحص مخبرية شاملة لسجلات الفنيين أو التذاكر أو تسليم العملاء.',
+    exportPrintPdfBtn: 'طباعة / حفظ كـ PDF',
+    exportJsonBtn: 'تنزيل JSON',
+    exportMarkdownBtn: 'تنزيل Markdown (.md)',
+    exportReportBadge: 'التقرير جاهز',
+    exportEpistemicNotice: 'توثق تقارير التشخيص الاستنتاج البصري للذكاء الاصطناعي عن بعد وقياسات الفني في المختبر. الأعطال المشتبه بها هي فرضيات تحليلية وليست أسباباً جذرية مؤكدة مادياً دون عزل للمكونات.',
+    exportReportHeaderTitle: 'تقرير تشخيص CircuitLens',
+    exportInvestigationIdLabel: 'معرف التحقيق',
+    exportGeneratedAtLabel: 'تاريخ الإنشاء',
+    exportDeviceSectionTitle: 'معلومات الدائرة والإدخال',
+    exportObservationsSectionTitle: 'الملاحظات البصرية المباشرة',
+    exportHypothesesSectionTitle: 'فرضيات الأعطال وتطورها',
+    exportEvidenceSectionTitle: 'سجل أدلة وقياسات الفني',
+    exportReassessmentsSectionTitle: 'نتائج وتوليف إعادة التقييم',
+    exportChecksSectionTitle: 'فحوصات استكشاف الأعطال الموصى بها',
+    exportSafetySectionTitle: 'احتياطات السلامة الكهربائية',
+    exportLimitationsSectionTitle: 'القيود والشكوك التشخيصية',
+    exportTelemetrySectionTitle: 'القياسات التشغيلية والرموز',
+    exportOriginAi: 'تحليل مولّد بالذكاء الاصطناعي',
+    exportOriginTech: 'سجل قياسات الفني الميدانية',
+    exportOriginSystem: 'بيانات النظام الوصفية',
+
+    // Stage 6B-4B-3: Hypothesis Evolution & Evidence Timeline
+    evolutionMatrixTitle: 'مصفوفة تطور الفرضيات',
+    evolutionMatrixSubtitle: 'تتبع مقارن لمرشحي الأعطال عبر التشخيص الأولي وجميع جولات إعادة التقييم.',
+    evolutionEpistemicNotice: 'توثق تقييمات الفرضيات التاريخية استنتاجات الذكاء الاصطناعي البصرية بناءً على قياسات الفحص المتراكمة. الفرضيات المدعومة هي استنتاجات تحليلية وليست أسباباً جذرية مؤكدة مادياً دون عزل للمكونات.',
+    matrixCycleInitialOnly: 'التقييم الأولي (R0)',
+    matrixCyclesLogged: 'جولات',
+    matrixColHypothesis: 'فرضية العطل المرشحة',
+    matrixColInitial: 'الأولي (R0)',
+    matrixColRoundPrefix: 'الجولة',
+    matrixColCurrent: 'الحالة الحالية',
+    matrixIntroducedInPrefix: 'أُدرجت في',
+    matrixShowDetails: 'عرض التعليل',
+    matrixHideDetails: 'إخفاء التعليل',
+    matrixInitialReasoningLabel: 'الاستدلال الأولي',
+    matrixStatusNotPresent: '—',
+    matrixStatusOmitted: 'تم تجاوزها',
+    matrixDeltaUp: 'ارتفعت الثقة',
+    matrixDeltaDown: 'انخفضت الثقة',
+    matrixCitationsCount: 'إجمالي الاستشهادات',
+    timelineTitle: 'الجدول الزمني للأدلة والتشخيص',
+    timelineSubtitle: 'مسار تدقيق زمني لفحوصات المختبر المادية، والقياسات المستبدلة، وتوليفات الذكاء الاصطناعي.',
+    timelineEventsLogged: 'محطات رئيسية',
+    timelineSourceAi: 'مولّد بالذكاء الاصطناعي',
+    timelineSourceTech: 'فحص فني ميداني',
+    timelineSourceSystem: 'بيانات النظام الوصفية',
+    timelineTimestampMissing: 'الوقت غير مسجل',
+    timelineInitialTag: 'الدورة R0 (الأولية)',
+    timelineSupersededBadge: '[مستبدلة]',
+    timelineInconclusiveNotice: 'نتيجة غير حاسمة — لا تثبت ولا تنفي الفرضيات',
+    timelineUnableNotice: 'تعذر إجراء الفحص كما هو محدد',
+    timelineRecordedMeasurement: 'القيمة المسجلة',
+    timelineJumpToSuperseding: 'الانتقال إلى محاولة القياس البديلة',
+    timelineHypothesisChangesTitle: 'تغيرات حالات الفرضيات المقيمة',
+    timelineSafetyAlert: 'احتياطات السلامة',
+    currentAssessmentTitle: 'توليف حالة التشخيص الحالية',
+    currentAssessmentSubtitle: 'ملخص تنفيذي ثلاثي الحالات لرجحان الفرضيات بناءً على قياسات الفحص المتراكمة.',
+    navToMatrixBtn: 'عرض مصفوفة التطور',
+    navToTimelineBtn: 'عرض الجدول الزمني للأدلة',
+    assessmentEpistemicHeader: 'حاجز معرفي',
+    assessmentEpistemicNotice: 'تمثل الفرضيات المدعومة احتمالية تحليلية مدعومة بقراءات الاختبارات الميدانية. وهي ليست بأي حال من الأحوال أسباباً جذرية مؤكدة مادياً دون عزل وفك لحام المكونات.',
+    noSupportedHypotheses: 'لا توجد فرضيات مدعومة بالأدلة الحالية.',
+    noContradictedHypotheses: 'لم يتم استبعاد أي فرضية بالفحوصات حتى الآن.',
+    noUnresolvedHypotheses: 'لا توجد فرضيات أعطال متبقية دون حسم.',
+    strongestSupportingEvidenceTitle: 'أدلة داعمة حاسمة',
+    importantContradictoryEvidenceTitle: 'أدلة نافية حاسمة',
+    outstandingChecksTitle: 'الفحوصات ذات الأولوية التالية للتحقق',
+    criticalSafetyTitle: 'احتياطات السلامة الكهربائية الأساسية',
+    subnavOverview: 'نظرة عامة',
+    subnavMatrix: 'مصفوفة تطور الفرضيات',
+    subnavTimeline: 'الجدول الزمني للأدلة',
+    subnavReport: 'تصدير التقرير',
+
+    // Stage 6B-4B-3D: Ambiguous Hypothesis Decoupling & Localization
+    ambiguousIdentityBadge: 'هوية ملتبسة',
+    ambiguousIdentityTooltip: 'تشترك عدة فرضيات في هذا العنوان. لا يمكن تتبع الهوية بشكل قاطع عبر الجولات.',
+    ambiguousMultipleCandidatesNotice: 'تشترك عدة فرضيات في هذا العنوان عبر الجولات؛ لا يمكن إثبات الهوية المشتركة.',
+    ambiguousCannotEstablishAcrossRounds: 'لا يمكن إثبات هوية الفرضية عبر جولات التشخيص.',
+    ambiguousNoTrendNotice: 'لا يظهر اتجاه للثقة نظراً لعدم التأكد من هوية الفرضية عبر الجولات.',
+    ambiguousGroupHeader: 'فرضيات ملتبسة خاصة بالجولة',
+    ambiguousGroupSubtitle: 'تشترك هذه الفرضيات المرشحة في عناوين متطابقة داخل نفس الجولة. تم توثيقها بشكل مستقل دون استنتاج استمرارية مضللة عبر الجولات.',
+    ambiguousReappearanceBadge: 'معاودة الظهور (هوية غير مؤكدة)',
+    ambiguousReappearanceTooltip: 'عادت الفرضية للظهور بعد أن تم تجاوزها في جولة سابقة؛ لا يمكن إثبات الاستمرارية عبر الجولات بمجرد تطابق العنوان.',
+    ambiguousRoundIsolatedNotice: 'فرضية مقصورة على الجولة؛ غير مرتبطة عبر الجولات.',
+
+    // Stage 6B-4B-3F: Explicit Hypothesis Identity Semantics & Export Completeness
+    heuristicTitleMatchBadge: 'تتبع مستند إلى العنوان',
+    heuristicTitleMatchTooltip: 'تمت المطابقة عبر الجولات استناداً إلى تطابق العنوان. الاستمرارية هي استدلال تقريبي وليست هوية مادية مؤكدة بشكل مستقل.',
+    heuristicTrackingExplanation: 'تُستخدم العناوين المتطابقة كاستدلال تتبعي عبر الجولات التشخيصية.',
+    heuristicNotConfirmedNotice: 'استمرارية الفرضية لا تشكل تأكيداً مادياً للخلل.',
+    matrixDeltaUpTooltip: 'ازدادت الثقة',
+    matrixDeltaDownTooltip: 'انخفضت الثقة',
+    matrixDeltaSameTooltip: 'بقيت الثقة دون تغيير',
+    matrixOverallDeltaUpTooltip: 'ازدادت الثقة العامة',
+    matrixOverallDeltaDownTooltip: 'انخفضت الثقة العامة',
+    exportInitialOnly: 'التقييم الأولي فقط',
+    exportNoEvidenceRecorded: 'لم يتم تسجيل أي قياسات أو اختبارات فحص مادية لهذه العملية التشخيصية.',
+    exportInitialReasoningHeading: 'الاستدلال الاستنتاجي الأولي والفحوصات المقترحة',
+    exportTechnicianEvidenceHeading: 'سجل زمني ثابت وغير قابل للتعديل للقياسات والاختبارات المادية التي أُجريت على طاولة العمل.',
+    exportDefaultSafetyNotice: 'تُطبق إجراءات السلامة الكهربائية القياسية في وضع فصل الطاقة.',
+    exportDefaultLimitationsNotice: 'لم يتم تسجيل أي قيود تشغيلية صريحة.',
+    viewMeasurementRecordTooltip: 'عرض سجل القياس',
+
+    // Stage 6B-5B: Compact Investigation Header & Workspace Shell
+    healthPopoverTitle: 'حالة خدمة الواجهة الخلفية',
+    healthPopoverClose: 'إغلاق',
+    subnavAriaLabel: 'طرق عرض محطة التشخيص',
+    investigationRound: 'الجولة',
+    statusActiveAssessment: 'تشخيص نشط',
+    statusReassessed: 'تمت إعادة التقييم',
+    compactNewInvestigation: 'تحقيق جديد',
+    compactEditSymptoms: 'تعديل الأعراض',
+
+    // Stage 6B-5C: Desktop Split Diagnostic Workbench
+    inspectionRailAriaLabel: 'محطة فحص الدائرة',
+    workflowRailAriaLabel: 'سير عمل الاستدلال التشخيصي واستكشاف الأعطال',
+    crossReferenceHint: 'انقر للمطابقة المرجعية مع صورة الدائرة',
+    crossReferenceClear: 'انقر لإلغاء المطابقة المرجعية',
+    initialTelemetryCardTitle: 'القياسات التشغيلية للتشخيص الأولي',
+
+    // Stage 6B-5E: Mobile Bottom Action Dock
+    mobileDockAriaLabel: 'التنقل والإجراءات السريعة للتحقيق على الجوال',
+    dockNavOverview: 'نظرة عامة',
+    dockNavMatrix: 'المصفوفة',
+    dockNavTimeline: 'الجدول',
+    dockNavReport: 'التقرير',
+    dockActionLogEvidence: 'تسجيل دليل',
+    dockActionReassess: 'إعادة التقييم',
+    dockActionReassessing: 'جارٍ التقييم...',
+
+    // Stage 6C-2C: Local-First Investigation Workspace & Persistence
+    workspaceTitle: 'مساحة عمل التحقيقات',
+    workspaceSubtitle: 'سجل التشخيص المحلي، وتاريخ أدلة الفحص المخبري، وحالات الدوائر النشطة.',
+    newInvestigationAction: 'فحص جديد',
+    allInvestigationsBtn: 'كافة الفحوصات',
+    searchInvestigationsPlaceholder: 'البحث عن الحالات باسم اللوحة أو الملاحظات أو الأعراض...',
+    filterAll: 'كافة الحالات',
+    filterUnderInvestigation: 'قيد التحقيق',
+    filterAwaitingEvidence: 'في انتظار الأدلة',
+    filterAssessmentUpdated: 'تم تحديث التقييم',
+    filterResolved: 'تم الحل',
+    filterArchived: 'المؤرشفة',
+    noInvestigationsFound: 'لم يتم العثور على أي فحوصات تطابق بحثك.',
+    noSavedInvestigationsTitle: 'لا توجد فحوصات محفوظة بعد',
+    noSavedInvestigationsDesc: 'ابدأ فحصاً جديداً لتحديد العيوب البصرية، وتسجيل قياسات أجهزة الفحص، وتتبع دورات إعادة التقييم بالذكاء الاصطناعي.',
+    savedLocallyNotice: 'محفوظ محلياً في IndexedDB داخل المتصفح',
+    privacyNotice: 'الخصوصية المحلية أولاً: جميع صور اللوحات وفرضيات التشخيص وقياسات الفحص تظل آمنة على هذا الجهاز فقط.',
+    saveStatusSaving: 'جارٍ الحفظ...',
+    saveStatusSaved: 'محفوظ محلياً',
+    saveStatusError: 'خطأ في التخزين',
+    deleteConfirmTitle: 'هل تريد حذف الفحص نهائياً؟',
+    deleteConfirmMsg: 'سيؤدي هذا الإجراء إلى حذف هذا الفحص التشخيصي نهائياً بما في ذلك كافة القياسات والصور وتاريخ التقارير من هذا المتصفح. لا يمكن التراجع عن هذا.',
+    deleteBtn: 'حذف الفحص',
+    archiveBtn: 'أرشفة',
+    unarchiveBtn: 'إلغاء الأرشفة',
+    openInvestigationBtn: 'فتح الفحص',
+    renameInvestigationBtn: 'إعادة تسمية الفحص',
+    lastModifiedLabel: 'آخر تحديث',
+    evidenceCountLabel: 'عناصر الأدلة',
+    reassessmentsCountLabel: 'دورات إعادة التقييم',
+    backToDashboardBtn: 'لوحة التحكم',
+    markResolvedBtn: 'تحديد كمحلول',
+    reopenCaseBtn: 'إعادة فتح الفحص',
+    statusNew: 'حالة جديدة',
+    statusUnderInvestigation: 'قيد التحقيق',
+    statusAwaitingEvidence: 'في انتظار الأدلة',
+    statusAssessmentUpdated: 'تم تحديث التقييم',
+    statusResolved: 'تم الحل',
+    saveRenameBtn: 'حفظ الاسم',
+    cancelBtn: 'إلغاء',
+
+    // Stage 6C-3A: Contextual Investigation Assistant
+    assistantPanelTitle: 'مساعد التحقيق',
+    assistantPanelSubtitle: 'حوار تشخيصي سياقي بالذكاء الاصطناعي لفحص الدائرة النشط',
+    assistantActiveCaseLabel: 'الحالة النشطة',
+    assistantOfflineBadge: 'معاينة دون اتصال',
+    assistantOfflineNotice: 'وضع العرض التوضيحي الحتمي: تُستمد الاستجابات من أدلة الحالة النشطة دون استدلال نماذج خارجية.',
+    assistantSuggestedHeading: 'الأسئلة الفنية المقترحة',
+    assistantSuggestLeading: 'اشرح فرضية العطل الرئيسية',
+    assistantSuggestUnconfirmed: 'لماذا لم يتم تأكيد هذه الفرضية بعد؟',
+    assistantSuggestLatestMeasure: 'تفسير القياس الأخير بحذر هندسي',
+    assistantSuggestNext: 'ما الذي يجب فحصه في الخطوة التالية؟',
+    assistantSuggestDistinguish: 'ما الدليل الذي يميز بين الفرضيات المتبقية؟',
+    assistantSuggestEvolution: 'لخّص كيف تغير التقييم بعد الأدلة الأخيرة',
+    assistantInputPlaceholder: 'اسأل عن الفرضيات، أو قراءات أجهزة القياس، أو عزل المكونات...',
+    assistantSendBtn: 'إرسال',
+    assistantSending: 'جارٍ تحليل السياق...',
+    assistantKeyboardHint: 'اضغط Enter للإرسال، وShift+Enter لسطر جديد',
+    assistantEmptyHistory: 'لا توجد رسائل لهذا الفحص بعد. اختر سؤالاً مقترحاً أعلاه أو اكتب استفسارك أدناه.',
+    assistantClearHistory: 'مسح المحادثة',
+    assistantRetryBtn: 'إعادة المحاولة',
+    assistantCloseBtn: 'إغلاق المساعد',
+    assistantToggleBtn: 'مساعد التحقيق',
+    assistantMessagesCount: 'رسائل',
+    assistantLiveBadge: 'ذكاء اصطناعي مباشر',
+    assistantLiveNotice: 'تم إنشاؤه بواسطة مزود استدلال النماذج المباشر.',
+    assistantPersistenceError: 'تعذر حفظ الرسالة في التخزين المحلي.',
+    assistantRetrySaveBtn: 'إعادة محاولة الحفظ',
+    assistantUnsavedPill: 'غير محفوظ',
   },
 };
 

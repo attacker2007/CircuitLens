@@ -39,6 +39,11 @@ import {
   DEFAULT_REQUEST_TIMEOUT_MS,
   MIN_REQUEST_TIMEOUT_MS,
   MAX_REQUEST_TIMEOUT_MS,
+  DIAGNOSIS_MAX_TOKENS,
+  REASSESSMENT_MAX_TOKENS,
+  TEST_PROMPT_MAX_TOKENS,
+  resolveDiagnosisMaxTokens,
+  resolveReassessmentMaxTokens,
   setTestPromptOverrideForTesting,
   setAnalyzerOverrideForTesting,
   setReassessmentAnalyzerOverrideForTesting,
@@ -47,6 +52,13 @@ import {
 } from './metaClient.js';
 import { parseDiagnosisJson } from './diagnosisValidation.js';
 import { parseReassessmentJson } from './reassessmentValidation.js';
+import {
+  calculateCostEstimate,
+  calculateEstimatedCostUsd,
+  calculatePartialCostUsd,
+  deriveUsageStatus,
+  PROVIDER_PRICING,
+} from './pricing.js';
 import type { DiagnosisRequest, DiagnosisReassessmentRequest, DiagnosisResponse, DiagnosisReassessmentResponse } from './types/diagnosis.js';
 
 let passedCount = 0;
@@ -733,6 +745,62 @@ ${JSON.stringify(MOCK_REASSESSMENT)}`;
     process.env.MODEL_PROVIDER = 'baseten';
     process.env.BASETEN_API_KEY = 'test-baseten-key';
 
+    // Case 8.0: Separate diagnosis and reassessment token allowances
+    assert(DIAGNOSIS_MAX_TOKENS === 3500, 'DIAGNOSIS_MAX_TOKENS is 3500');
+    assert(REASSESSMENT_MAX_TOKENS === 6000, 'REASSESSMENT_MAX_TOKENS is 6000');
+    assert(TEST_PROMPT_MAX_TOKENS === 500, 'TEST_PROMPT_MAX_TOKENS is 500');
+    assert(resolveDiagnosisMaxTokens() === 3500, 'resolveDiagnosisMaxTokens defaults to 3500');
+    assert(resolveReassessmentMaxTokens() === 6000, 'resolveReassessmentMaxTokens defaults to 6000');
+
+    // Case 8.0b: Request construction passes distinct max_tokens per operation
+    let capturedDiagnosisTokens = 0;
+    setChatCompletionOverrideForTesting(async (params: any) => {
+      capturedDiagnosisTokens = params.max_tokens;
+      return {
+        id: 'chatcmpl-test-params',
+        object: 'chat.completion',
+        created: Date.now(),
+        model: 'meta-models/muse-spark-open-1026',
+        choices: [
+          {
+            index: 0,
+            finish_reason: 'stop',
+            message: { role: 'assistant', content: JSON.stringify(MOCK_DIAGNOSIS) },
+          },
+        ],
+        usage: { prompt_tokens: 100, completion_tokens: 100, total_tokens: 200 },
+      } as any;
+    });
+
+    await analyzeCircuitImage({
+      image: VALID_JPEG_DATA_URL,
+      expectedBehavior: 'Powers on normally',
+      observedBehavior: 'Dead board',
+    });
+    assert(capturedDiagnosisTokens === 3500, 'analyzeCircuitImage passes max_tokens: 3500');
+
+    let capturedReassessmentTokens = 0;
+    setChatCompletionOverrideForTesting(async (params: any) => {
+      capturedReassessmentTokens = params.max_tokens;
+      return {
+        id: 'chatcmpl-test-params-reassess',
+        object: 'chat.completion',
+        created: Date.now(),
+        model: 'meta-models/muse-spark-open-1026',
+        choices: [
+          {
+            index: 0,
+            finish_reason: 'stop',
+            message: { role: 'assistant', content: JSON.stringify(MOCK_REASSESSMENT) },
+          },
+        ],
+        usage: { prompt_tokens: 100, completion_tokens: 100, total_tokens: 200 },
+      } as any;
+    });
+
+    await reassessCircuitEvidence(reassessmentPayload);
+    assert(capturedReassessmentTokens === 6000, 'reassessCircuitEvidence passes max_tokens: 6000');
+
     // Case 8.1: DiagnosisOutputLimitError structure and handleApiError mapping
     const outputLimitErr = new DiagnosisOutputLimitError(
       'Model output reached the maximum completion token limit (3500 tokens) before completing the diagnostic assessment.',
@@ -782,16 +850,18 @@ ${JSON.stringify(MOCK_REASSESSMENT)}`;
       lengthThrew = true;
       assert(err instanceof DiagnosisOutputLimitError, 'analyzeCircuitImage throws DiagnosisOutputLimitError when finish_reason === "length"');
       assert((err as DiagnosisOutputLimitError).completionTokens === 3500, 'Token count recorded in error');
+      assert((err as DiagnosisOutputLimitError).maxTokens === 3500, 'Diagnosis maxTokens recorded as 3500');
     }
     assert(lengthThrew, 'finish_reason="length" caught before JSON parsing');
 
-    // Case 8.3: finish_reason === "length" in reassessCircuitEvidence throws DiagnosisOutputLimitError
+    // Case 8.3: finish_reason === "length" in reassessCircuitEvidence throws DiagnosisOutputLimitError with 6000 limit
     let reassessLengthThrew = false;
     try {
       await reassessCircuitEvidence(reassessmentPayload);
     } catch (err) {
       reassessLengthThrew = true;
       assert(err instanceof DiagnosisOutputLimitError, 'reassessCircuitEvidence throws DiagnosisOutputLimitError when finish_reason === "length"');
+      assert((err as DiagnosisOutputLimitError).maxTokens === 6000, 'Reassessment maxTokens recorded as 6000');
     }
     assert(reassessLengthThrew, 'Reassessment finish_reason="length" correctly caught');
 
@@ -1173,6 +1243,180 @@ ${JSON.stringify(MOCK_REASSESSMENT)}`;
     // Case 9.6: Image diagnosis prompt independence
     assert(DIAGNOSTIC_SYSTEM_PROMPT.includes('at most 3 primary fault hypotheses'), 'DIAGNOSTIC_SYSTEM_PROMPT completely untouched');
     assert(!DIAGNOSTIC_SYSTEM_PROMPT.includes('at most 2 focused next recommended checks'), 'Reassessment changes strictly isolated from image diagnosis');
+
+    // -------------------------------------------------------------------------
+    // SECTION 10: Stage 6B-3 Diagnostic Telemetry & Cost Transparency Tests
+    // -------------------------------------------------------------------------
+    console.log('\n--- SECTION 10: Stage 6B-3 Diagnostic Telemetry & Cost Transparency ---');
+
+    // Case 10.1: calculateEstimatedCostUsd with standard Baseten pricing (complete usage)
+    const diagEstimate = calculateCostEstimate('baseten', 'meta-models/muse-spark-open-1026', 1634, 3064);
+    assert(diagEstimate.estimatedCostUsd === 0.015065, 'Baseten diagnosis cost correctly calculated: (1634*1.25/1M) + (3064*4.25/1M) = $0.015065');
+    assert(diagEstimate.partialCostUsd === undefined, 'No partialCostUsd when both prompt and completion are present');
+    assert(calculateEstimatedCostUsd('baseten', 'meta-models/muse-spark-open-1026', 1634, 3064) === 0.015065, 'calculateEstimatedCostUsd returns full cost');
+
+    const reassessEstimate = calculateCostEstimate('baseten', 'meta-models/muse-spark-open-1026', 3023, 2725);
+    assert(reassessEstimate.estimatedCostUsd === 0.01536, 'Baseten reassessment cost correctly calculated: (3023*1.25/1M) + (2725*4.25/1M) = $0.015360');
+    assert(reassessEstimate.partialCostUsd === undefined, 'No partialCostUsd for full reassessment usage');
+
+    // Case 10.2: Missing input usage (only output usage reported) - must NEVER report as full cost
+    const partialOutputEstimate = calculateCostEstimate('baseten', 'meta-models/muse-spark-open-1026', undefined, 1000);
+    assert(partialOutputEstimate.estimatedCostUsd === undefined, 'Incomplete usage does NOT populate estimatedCostUsd');
+    assert(partialOutputEstimate.partialCostUsd === 0.00425, 'Incomplete usage populates partialCostUsd subtotal only ($0.004250)');
+    assert(calculateEstimatedCostUsd('baseten', 'meta-models/muse-spark-open-1026', undefined, 1000) === undefined, 'calculateEstimatedCostUsd returns undefined when input missing');
+    assert(calculatePartialCostUsd('baseten', 'meta-models/muse-spark-open-1026', undefined, 1000) === 0.00425, 'calculatePartialCostUsd returns output subtotal');
+
+    // Case 10.3: Missing output usage (only input usage reported) - must NEVER report as full cost
+    const partialInputEstimate = calculateCostEstimate('baseten', 'meta-models/muse-spark-open-1026', 1000, undefined);
+    assert(partialInputEstimate.estimatedCostUsd === undefined, 'Incomplete usage does NOT populate estimatedCostUsd');
+    assert(partialInputEstimate.partialCostUsd === 0.00125, 'Incomplete usage populates partialCostUsd subtotal only ($0.001250)');
+    assert(calculateEstimatedCostUsd('baseten', 'meta-models/muse-spark-open-1026', 1000, undefined) === undefined, 'calculateEstimatedCostUsd returns undefined when output missing');
+    assert(calculatePartialCostUsd('baseten', 'meta-models/muse-spark-open-1026', 1000, undefined) === 0.00125, 'calculatePartialCostUsd returns input subtotal');
+
+    // Case 10.4: Missing both input and output usage
+    const missingUsageEstimate = calculateCostEstimate('baseten', 'meta-models/muse-spark-open-1026', undefined, undefined);
+    assert(missingUsageEstimate.estimatedCostUsd === undefined, 'Missing provider usage yields undefined estimatedCostUsd');
+    assert(missingUsageEstimate.partialCostUsd === undefined, 'Missing provider usage yields undefined partialCostUsd');
+    assert(calculateEstimatedCostUsd('baseten', 'meta-models/muse-spark-open-1026', undefined, undefined) === undefined, 'calculateEstimatedCostUsd returns undefined when both missing');
+
+    // Case 10.5: Actual zero-token values vs unavailable metrics
+    const zeroBoth = calculateCostEstimate('baseten', 'meta-models/muse-spark-open-1026', 0, 0);
+    assert(zeroBoth.estimatedCostUsd === 0, 'Actual zero-token values yield explicit $0 complete cost');
+    assert(zeroBoth.partialCostUsd === undefined, 'Complete zero usage does not set partialCostUsd');
+
+    const zeroInputOnly = calculateCostEstimate('baseten', 'meta-models/muse-spark-open-1026', 0, undefined);
+    assert(zeroInputOnly.estimatedCostUsd === undefined, 'Zero input + undefined output does not set estimatedCostUsd');
+    assert(zeroInputOnly.partialCostUsd === 0, 'Zero input + undefined output yields $0 partialCostUsd');
+
+    const zeroOutputOnly = calculateCostEstimate('baseten', 'meta-models/muse-spark-open-1026', undefined, 0);
+    assert(zeroOutputOnly.estimatedCostUsd === undefined, 'Undefined input + zero output does not set estimatedCostUsd');
+    assert(zeroOutputOnly.partialCostUsd === 0, 'Undefined input + zero output yields $0 partialCostUsd');
+
+    // Case 10.6: Provider isolation - Meta provider without pricing sheet yields undefined
+    const metaEstimate = calculateCostEstimate('meta', 'muse-spark-1.3', 1000, 1000);
+    assert(metaEstimate.estimatedCostUsd === undefined, 'Meta provider yields undefined estimatedCostUsd');
+    assert(metaEstimate.partialCostUsd === undefined, 'Meta provider yields undefined partialCostUsd');
+
+    // Case 10.7: Exact model matching - Unknown model on Baseten yields undefined (no default fallback rate!)
+    const unknownModelEstimate = calculateCostEstimate('baseten', 'meta-models/unknown-spark-future', 1000, 1000);
+    assert(unknownModelEstimate.estimatedCostUsd === undefined, 'Unknown model on Baseten yields undefined estimatedCostUsd (no default fallback)');
+    assert(unknownModelEstimate.partialCostUsd === undefined, 'Unknown model on Baseten yields undefined partialCostUsd');
+
+    // Unknown provider
+    const unknownProviderEstimate = calculateCostEstimate('unknown_cloud', 'some-model', 1000, 1000);
+    assert(unknownProviderEstimate.estimatedCostUsd === undefined, 'Unknown provider yields undefined cost');
+
+    // Case 10.8: deriveUsageStatus validation
+    assert(deriveUsageStatus(100, 200) === 'reported', 'Full usage status when both tokens present');
+    assert(deriveUsageStatus(0, 0) === 'reported', 'Full usage status when both tokens are zero');
+    assert(deriveUsageStatus(100, undefined) === 'partial', 'Partial status when output missing');
+    assert(deriveUsageStatus(undefined, 200) === 'partial', 'Partial status when input missing');
+    assert(deriveUsageStatus(undefined, undefined) === 'unavailable', 'Unavailable status when both missing');
+
+    // Case 10.9: Pipeline telemetry population in analyzeCircuitImage
+    setChatCompletionOverrideForTesting(async () => {
+      return {
+        id: 'chatcmpl-telemetry-diag',
+        object: 'chat.completion',
+        created: Date.now(),
+        model: 'meta-models/muse-spark-open-1026',
+        choices: [
+          {
+            index: 0,
+            finish_reason: 'stop',
+            message: { role: 'assistant', content: JSON.stringify(MOCK_DIAGNOSIS) },
+          },
+        ],
+        usage: { prompt_tokens: 1634, completion_tokens: 3064, total_tokens: 4698 },
+      } as any;
+    });
+
+    const diagTelemetryRes = await analyzeCircuitImage({
+      image: VALID_JPEG_DATA_URL,
+      expectedBehavior: 'Powers on',
+      observedBehavior: 'Dead board',
+    });
+
+    assert(diagTelemetryRes.metadata !== undefined, 'Diagnosis response includes metadata');
+    assert(diagTelemetryRes.metadata?.requestType === 'diagnosis', 'Metadata requestType is diagnosis');
+    assert(diagTelemetryRes.metadata?.provider === 'baseten', 'Metadata provider is baseten');
+    assert(diagTelemetryRes.metadata?.model === 'meta-models/muse-spark-open-1026', 'Metadata model is correctly captured');
+    assert(diagTelemetryRes.metadata?.promptTokens === 1634, 'Metadata promptTokens captured');
+    assert(diagTelemetryRes.metadata?.completionTokens === 3064, 'Metadata completionTokens captured');
+    assert(diagTelemetryRes.metadata?.totalTokens === 4698, 'Metadata totalTokens captured');
+    assert(diagTelemetryRes.metadata?.finishReason === 'stop', 'Metadata finishReason captured');
+    assert(typeof diagTelemetryRes.metadata?.durationMs === 'number', 'Metadata durationMs is numeric');
+    assert(diagTelemetryRes.metadata?.estimatedCostUsd === 0.015065, 'Metadata estimatedCostUsd correctly populated');
+    assert(diagTelemetryRes.metadata?.partialCostUsd === undefined, 'Metadata partialCostUsd is undefined on complete usage');
+    assert(diagTelemetryRes.metadata?.usageStatus === 'reported', 'Metadata usageStatus is reported');
+
+    // Case 10.10: Pipeline telemetry population in reassessCircuitEvidence
+    setChatCompletionOverrideForTesting(async () => {
+      return {
+        id: 'chatcmpl-telemetry-reassess',
+        object: 'chat.completion',
+        created: Date.now(),
+        model: 'meta-models/muse-spark-open-1026',
+        choices: [
+          {
+            index: 0,
+            finish_reason: 'stop',
+            message: { role: 'assistant', content: JSON.stringify(MOCK_REASSESSMENT) },
+          },
+        ],
+        usage: { prompt_tokens: 3023, completion_tokens: 2725, total_tokens: 5748 },
+      } as any;
+    });
+
+    const reassessTelemetryRes = await reassessCircuitEvidence(reassessmentPayload);
+    assert(reassessTelemetryRes.metadata !== undefined, 'Reassessment response includes metadata');
+    assert(reassessTelemetryRes.metadata?.requestType === 'reassessment', 'Metadata requestType is reassessment');
+    assert(reassessTelemetryRes.metadata?.provider === 'baseten', 'Metadata provider is baseten');
+    assert(reassessTelemetryRes.metadata?.estimatedCostUsd === 0.01536, 'Metadata estimatedCostUsd correctly populated');
+    assert(reassessTelemetryRes.metadata?.partialCostUsd === undefined, 'Metadata partialCostUsd is undefined on complete usage');
+    assert(reassessTelemetryRes.metadata?.usageStatus === 'reported', 'Metadata usageStatus is reported');
+
+    // Case 10.11: Telemetry credential safety - ensures sensitive provider keys are NOT leaked in metadata
+    const metadataStr = JSON.stringify(reassessTelemetryRes.metadata);
+    assert(!metadataStr.includes('key'), 'Metadata does not contain sensitive key fields');
+    assert(!metadataStr.includes('Authorization'), 'Metadata does not contain auth headers');
+    assert(!metadataStr.includes('Bearer'), 'Metadata does not contain bearer tokens');
+    assert(!metadataStr.includes('test-baseten-key'), 'Metadata does not leak API key values');
+
+    // Case 10.12: Pipeline telemetry population with partial usage in analyzeCircuitImage
+    setChatCompletionOverrideForTesting(async () => {
+      return {
+        id: 'chatcmpl-telemetry-partial',
+        object: 'chat.completion',
+        created: Date.now(),
+        model: 'meta-models/muse-spark-open-1026',
+        choices: [
+          {
+            index: 0,
+            finish_reason: 'stop',
+            message: { role: 'assistant', content: JSON.stringify(MOCK_DIAGNOSIS) },
+          },
+        ],
+        // Missing prompt_tokens, only completion_tokens reported
+        usage: { completion_tokens: 1000 },
+      } as any;
+    });
+
+    const diagPartialRes = await analyzeCircuitImage({
+      image: VALID_JPEG_DATA_URL,
+      expectedBehavior: 'Powers on',
+      observedBehavior: 'Dead board',
+    });
+
+    assert(diagPartialRes.metadata?.promptTokens === undefined, 'Prompt tokens undefined');
+    assert(diagPartialRes.metadata?.completionTokens === 1000, 'Completion tokens 1000');
+    assert(diagPartialRes.metadata?.totalTokens === undefined, 'Total tokens not fabricated');
+    assert(diagPartialRes.metadata?.estimatedCostUsd === undefined, 'Estimated full cost is undefined');
+    assert(diagPartialRes.metadata?.partialCostUsd === 0.00425, 'Partial cost subtotal populated ($0.00425)');
+    assert(diagPartialRes.metadata?.usageStatus === 'partial', 'Usage status is partial');
+
+    // Reset override
+    setChatCompletionOverrideForTesting(null);
   } finally {
     if (server) {
       (server as Server).close();

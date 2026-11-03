@@ -1,0 +1,121 @@
+{
+  "summary": "Arduino Uno SMD shows global 5V (0.4V) and 3.3V (0.1V) rail collapse on both USB and DC inputs with ON LED dark and no enumeration. Pattern indicates common downstream short/overload on 5V rail dragging both supplies into current-limit, not an upstream open. Primary suspects: shorted 5V rail load, shorted 3.3V regulator/rail reflecting to 5V, or failed NCP1117 5V regulator.",
+  "visibleObservations": [
+    {
+      "description": "No obvious smoke, charring, or burnt substrate visible on top side at this resolution",
+      "evidence": "Blue PCB top view, angled; area near DC jack, NCP1117 regulator, C1/C2 electrolytics, USB-B jack shows no discoloration",
+      "confidence": "medium"
+    },
+    {
+      "description": "Key power path landmarks identifiable but fine solder detail not resolvable",
+      "evidence": "USB-B jack left edge, DC barrel jack bottom edge, two 47uF electrolytics near NCP1117ST50T3G, ATmega328P SMD and ATmega16U2 present, F1 polyfuse and D1 diode area near USB/DC",
+      "confidence": "high"
+    },
+    {
+      "description": "ON and L LEDs appear off, consistent with reported unpowered/collapsed rail state",
+      "evidence": "Photo shows board unpowered; no illumination visible near ON silkscreen and pin 13 L area",
+      "confidence": "high"
+    }
+  ],
+  "hypotheses": [
+    {
+      "title": "Dead short on 5V rail overloading F1 polyfuse and NCP1117 regulator",
+      "reasoning": "0.4V on 5V from both USB (via F1) and DC (via D1->NCP1117) implies common load short to GND pulling supplies into current limit/foldback. ON LED (5V-powered) dark supports this.",
+      "supportingEvidence": [
+        "5V measures 0.4V on both independent inputs",
+        "No USB enumeration - ATmega16U2 unpowered",
+        "Technician disconnected quickly to avoid thermal runaway suggesting high current"
+      ],
+      "confidence": "high",
+      "suggestedVerification": "Unpowered cold resistance 5V to GND at 5V header pin; healthy >1kΩ, short <10Ω indicates rail short. Then isolate by checking 3.3V regulator input resistance and downstream ICs."
+    },
+    {
+      "title": "Shorted LP2985-33 3.3V regulator or 3.3V rail short dragging 5V down",
+      "reasoning": "LP2985-33 input is fed from 5V rail. Internal VIN-GND short or output short with pass element failure will load 5V heavily, causing 5V to collapse to 0.4V and 3.3V to 0.1V.",
+      "supportingEvidence": [
+        "3.3V rail even lower (0.1V) than 5V (0.4V)",
+        "Both rails collapsed together",
+        "U1 regulator section flagged as suspect"
+      ],
+      "confidence": "medium",
+      "suggestedVerification": "Unpowered resistance 3.3V to GND and 5V to 3.3V regulator VIN pin to GND; compare to known-good. Lift/desolder LP2985 input if short confirmed to see if 5V recovers."
+    },
+    {
+      "title": "Failed NCP1117ST50T3G 5V regulator internally shorted or D1/F1 degraded after overvoltage/reverse event",
+      "reasoning": "Shorted NCP1117 (VIN-GND or VOUT-GND) will clamp Vin and hold 5V low on DC input; if 5V rail also shorted, USB via F1 also collapses. Tripped polyfuse F1 or open D1 alone would not explain both inputs failing simultaneously unless accompanied by downstream short.",
+      "supportingEvidence": [
+        "Failure on both USB and DC paths",
+        "No visible damage - internal semiconductor short possible",
+        "Suspect components include D1, F1, U1 near DC jack"
+      ],
+      "confidence": "medium",
+      "suggestedVerification": "Unpowered diode-mode check D1 (should be ~0.3-0.7V one way), F1 resistance (<1Ω cold, high if tripped/open), NCP1117 VIN-GND and VOUT-GND resistance/diode check for shorts."
+    }
+  ],
+  "recommendedChecks": [
+    {
+      "stepNumber": 1,
+      "title": "Unpowered visual inspection and cold rail resistance",
+      "testType": "Visual Inspection",
+      "toolsNeeded": [
+        "Magnifier/microscope",
+        "Multimeter (resistance mode)",
+        "ESD mat"
+      ],
+      "procedure": "With USB and DC disconnected, inspect under magnification: F1, D1, NCP1117, LP2985, C1/C2, USB-B pins, ATmega328P/16U2 for cracks, solder bridges, flux residue, bulged caps. Then measure resistance 5V header to GND and 3.3V header to GND. Also measure VIN to GND.",
+      "expectedResult": "No burnt/cracked parts. 5V-GND >1kΩ (often 3-10kΩ), 3.3V-GND >500Ω, VIN-GND >10kΩ. <10-50Ω indicates hard short.",
+      "safetyNotes": [
+        "Keep board fully unpowered and disconnected from USB/host",
+        "Use ESD protection"
+      ]
+    },
+    {
+      "stepNumber": 2,
+      "title": "Unpowered continuity of polyfuse F1, diode D1, and regulators",
+      "testType": "Unpowered Continuity",
+      "toolsNeeded": [
+        "Multimeter (continuity/diode mode)"
+      ],
+      "procedure": "Measure F1 across terminals: should be <1-5Ω cold (polyfuse). Measure D1 anode-cathode diode drop: ~0.4-0.7V forward, OL reverse. Measure NCP1117 VIN-VOUT-GND and LP2985 VIN-VOUT-GND for shorts (diode mode). Check USB-B 5V pin to F1 to 5V rail continuity.",
+      "expectedResult": "F1 low resistance, D1 rectifying, no regulator pin shorted to GND (<0.1V diode drop both directions indicates short).",
+      "safetyNotes": [
+        "Do not apply external power during continuity tests",
+        "Discharge C1/C2 before probing"
+      ]
+    },
+    {
+      "stepNumber": 3,
+      "title": "Current-limited power injection to locate short (thermal/voltage)",
+      "testType": "In-Circuit Voltage",
+      "toolsNeeded": [
+        "Lab supply with current limit",
+        "Thermal camera or isopropyl alcohol",
+        "Multimeter"
+      ],
+      "procedure": "Set lab supply to 5V, current limit 100mA, inject at 5V header GND/5V (disconnect USB/DC). Monitor voltage and current; if current hits limit at ~0.4V, short confirmed. Use thermal camera or alcohol evaporation to find hottest component (regulator, cap, MCU). If no heat, lift LP2985 input to isolate 3.3V rail.",
+      "expectedResult": "Healthy board draws 30-80mA at 5V with 5V stable. Shorted board hits 100mA limit with voltage collapse and one component heats rapidly.",
+      "safetyNotes": [
+        "Never exceed 5.5V or 200mA limit to avoid PCB trace damage",
+        "Disconnect immediately if component smokes/heats >60C",
+        "Do not probe mains-powered DC adapter"
+      ]
+    }
+  ],
+  "limitations": [
+    "Single angled top-view photo, low resolution; solder joints, component markings (U1, D1, F1), and bottom-side traces not visible",
+    "No powered thermal/IR or high-res close-up of regulator/capacitor area to confirm shorts",
+    "Cannot verify prior overvoltage, reverse polarity, or ESD event history that could explain simultaneous rail collapse"
+  ],
+  "safetyWarnings": [
+    "Do not touch energized regulator, polyfuse, or capacitors; risk of burns from thermal runaway",
+    "Use current-limited supply only; unregulated 9V DC jack can source high current into short",
+    "Observe ESD precautions for ATmega328P/16U2 CMOS devices"
+  ],
+  "metadata": {
+    "promptTokens": 1634,
+    "completionTokens": 3064,
+    "totalTokens": 4698,
+    "finishReason": "stop",
+    "durationMs": 19180
+  }
+}

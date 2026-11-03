@@ -5,6 +5,7 @@ import type {
   IntakeFileState,
   StagedIntakePayload,
   FieldValidationErrors,
+  ActiveInvestigationInfo,
 } from '../types/intake';
 import type { DiagnosisResponse } from '../types/diagnosis';
 import {
@@ -17,13 +18,29 @@ import {
 } from '../api/diagnosisClient';
 import { optimizeImageForDiagnosis } from '../utils/imageOptimizer';
 import { DiagnosticResults } from './DiagnosticResults';
+import type { InvestigationRecord } from '../types/investigation';
+import { createBlobUrlTracker, type BlobUrlTracker } from '../utils/blobUrlTracker';
 
 interface IntakeSectionProps {
   t: Translations;
   lang: SupportedLanguage;
+  onActiveInvestigationChange?: (info: ActiveInvestigationInfo | null) => void;
+  activeInvestigationRecord?: InvestigationRecord | null;
+  onInvestigationUpdate?: (updates: Partial<InvestigationRecord>) => void;
+  onNewInvestigationRequest?: () => void;
 }
 
-export function IntakeSection({ t, lang }: IntakeSectionProps) {
+export function IntakeSection({
+  t,
+  lang,
+  onActiveInvestigationChange,
+  activeInvestigationRecord,
+  onInvestigationUpdate,
+  onNewInvestigationRequest,
+}: IntakeSectionProps) {
+  // Reassessment round count across cycles
+  const [reassessmentCount, setReassessmentCount] = useState<number>(0);
+
   // Image selection state
   const [fileState, setFileState] = useState<IntakeFileState | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -66,9 +83,10 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const previewUrlRef = useRef<string | null>(null);
+  const blobUrlTrackerRef = useRef<BlobUrlTracker>(createBlobUrlTracker());
   const diagnosisAbortControllerRef = useRef<AbortController | null>(null);
 
-  // Synchronize active preview URL ref
+  // Synchronize active preview URL ref with fileState and tracker
   useEffect(() => {
     previewUrlRef.current = fileState?.previewUrl || null;
   }, [fileState]);
@@ -97,20 +115,178 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
     setCameraError(null);
   }, [stopMediaStream]);
 
-  // Cleanup object URL, media streams, and any in-flight diagnosis requests on unmount
+  // Cleanup object URL tracker, media streams, and any in-flight diagnosis requests on unmount
   useEffect(() => {
     return () => {
       stopMediaStream();
-      if (previewUrlRef.current) {
-        URL.revokeObjectURL(previewUrlRef.current);
-        previewUrlRef.current = null;
-      }
+      blobUrlTrackerRef.current.revokeAll();
+      previewUrlRef.current = null;
       if (diagnosisAbortControllerRef.current) {
         diagnosisAbortControllerRef.current.abort();
         diagnosisAbortControllerRef.current = null;
       }
     };
   }, [stopMediaStream]);
+
+  // Offline verification fixture harness (activated exclusively via URL search param ?mock=true)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('mock=true')) {
+      const mockFileState: IntakeFileState = {
+        file: new File([''], 'circuit_sample_macro.jpg', { type: 'image/jpeg' }),
+        previewUrl: '/src/assets/hero.png',
+        name: 'circuit_sample_macro.jpg',
+        sizeFormatted: '1.24 MB',
+        sizeBytes: 1300000,
+      };
+      const mockFormData: IntakeFormValues = {
+        boardName: 'STM32-H405 Diagnostic Dev Board',
+        expectedBehavior: 'Powers from 12V barrel jack; stabilizes 5V and 3.3V rails cleanly.',
+        observedBehavior: 'Dead board; 5V rail collapses to 0.4V with excessive current draw.',
+        relevantComponents: 'U1 (LDO regulator), L2 (buck inductor), C14 (bulk cap)',
+        additionalNotes: 'Board shows thermal stress near power entry.',
+      };
+      setFileState(mockFileState);
+      setFormData(mockFormData);
+      setStagedPayload({
+        formData: mockFormData,
+        fileState: mockFileState,
+        stagedAt: new Date().toISOString(),
+      });
+      setIsStaged(true);
+      setDiagnosisResult({
+        summary: 'Direct visual anomalies detected around power entry; suspected low-impedance fault on the 5V power net.',
+        visibleObservations: [
+          {
+            description: 'Discoloration and cracked resin on L2 inductor core near DC barrel jack',
+            evidence: 'Thermal darkening on silkscreen and cracked core ferrite visible',
+            confidence: 'high',
+          },
+          {
+            description: 'Minor flux residue and solder whisker bridging pins 2 and 3 of U1 regulator',
+            evidence: 'Yellowish deposit and metallic bridging visible under magnification',
+            confidence: 'medium',
+          },
+          {
+            description: 'Intact bypass capacitors C12-C15 with no visible package fracture',
+            evidence: 'SMD ceramic packages show normal solder meniscus',
+            confidence: 'high',
+          },
+        ],
+        hypotheses: [
+          {
+            title: '5V net overload / low impedance fault',
+            reasoning: 'Input inductor cracked and rail collapses to 0.4V under power.',
+            supportingEvidence: ['L2 discoloration', 'Thermal stress around DC jack'],
+            confidence: 'high',
+            suggestedVerification: 'Perform unpowered cold resistance check from 5V rail to GND.',
+          },
+          {
+            title: 'U1 regulator internal short or solder bridge',
+            reasoning: 'Metallic whisker visible between pins 2 and 3 of regulator package.',
+            supportingEvidence: ['Visible solder whisker on U1'],
+            confidence: 'medium',
+            suggestedVerification: 'Clean flux and measure pin-to-pin diode drop.',
+          },
+        ],
+        recommendedChecks: [
+          {
+            stepNumber: 1,
+            title: 'Cold Resistance Check (5V Rail to GND)',
+            testType: 'Cold Resistance',
+            toolsNeeded: ['Digital Multimeter', 'Sharp Probes'],
+            procedure: 'De-energize board. Set DMM to resistance mode. Measure between 5V test point and GND.',
+            expectedResult: '> 1 kΩ (typical unpowered CMOS circuit impedance)',
+            safetyNotes: ['Ensure board is unpowered', 'Discharge all capacitors before probing'],
+          },
+          {
+            stepNumber: 2,
+            title: 'Visual Inspection of U1 Pins under Magnification',
+            testType: 'Visual Inspection',
+            toolsNeeded: ['Stereo Microscope / Loupe', 'Dental Pick / Tweezers'],
+            procedure: 'Inspect solder fillets on U1 pins 2 and 3; remove any flux bridging with IPA.',
+            expectedResult: 'Clean, isolated pins with no metallic bridge',
+            safetyNotes: ['Wear ESD protection'],
+          },
+        ],
+        limitations: [
+          'Internal copper plane shorts cannot be ruled out from surface inspection alone.',
+        ],
+        safetyWarnings: [
+          'DO NOT apply power from bench supply while low impedance persists.',
+          'Always wear safety eyewear when examining heat-stressed components.',
+        ],
+        metadata: {
+          requestType: 'diagnosis',
+          provider: 'baseten',
+          model: 'meta-models/muse-spark-open-1026',
+          promptTokens: 1634,
+          completionTokens: 3064,
+          totalTokens: 4698,
+          durationMs: 19180,
+          estimatedCostUsd: 0.015065,
+          usageStatus: 'reported',
+        },
+      });
+    }
+  }, []);
+
+  // Synchronize state when activeInvestigationRecord changes (e.g., reopened from Dashboard or New Case)
+  useEffect(() => {
+    if (!activeInvestigationRecord) return;
+    if (typeof window !== 'undefined' && window.location.search.includes('mock=true')) return;
+
+    setFormData(activeInvestigationRecord.formData);
+    setIsStaged(activeInvestigationRecord.isStaged);
+    setDiagnosisResult(activeInvestigationRecord.diagnosis);
+    setReassessmentCount(activeInvestigationRecord.reassessments ? activeInvestigationRecord.reassessments.length : 0);
+
+    if (activeInvestigationRecord.imageBlob && activeInvestigationRecord.imageMetadata) {
+      const restoredFile = new File(
+        [activeInvestigationRecord.imageBlob],
+        activeInvestigationRecord.imageMetadata.name,
+        {
+          type: activeInvestigationRecord.imageMetadata.type,
+          lastModified: activeInvestigationRecord.imageMetadata.lastModified,
+        }
+      );
+      const previewUrl = blobUrlTrackerRef.current.create(activeInvestigationRecord.imageBlob);
+      const restoredFileState: IntakeFileState = {
+        file: restoredFile,
+        previewUrl,
+        name: activeInvestigationRecord.imageMetadata.name,
+        sizeFormatted: formatFileSize(activeInvestigationRecord.imageMetadata.sizeBytes),
+        sizeBytes: activeInvestigationRecord.imageMetadata.sizeBytes,
+      };
+      setFileState(restoredFileState);
+
+      if (activeInvestigationRecord.isStaged) {
+        setStagedPayload({
+          formData: activeInvestigationRecord.formData,
+          fileState: restoredFileState,
+          stagedAt: activeInvestigationRecord.updatedAt,
+        });
+      }
+    } else {
+      blobUrlTrackerRef.current.revokeCurrent();
+      setFileState(null);
+      setStagedPayload(null);
+    }
+  }, [activeInvestigationRecord?.id]);
+
+  // Synchronize active investigation state with workspace shell
+  useEffect(() => {
+    if (isStaged && stagedPayload && diagnosisResult) {
+      onActiveInvestigationChange?.({
+        boardName: stagedPayload.formData.boardName || '',
+        imageName: stagedPayload.fileState.name || '',
+        reassessmentCount,
+        onNewInvestigation: handleNewInvestigation,
+        onEditSymptoms: handleReturnToEdit,
+      });
+    } else {
+      onActiveInvestigationChange?.(null);
+    }
+  }, [isStaged, stagedPayload, diagnosisResult, reassessmentCount, onActiveInvestigationChange]);
 
   // Close camera modal on Escape key press
   useEffect(() => {
@@ -151,13 +327,8 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
         return;
       }
 
-      // Valid file received: revoke existing preview URL before replacing
-      if (previewUrlRef.current) {
-        URL.revokeObjectURL(previewUrlRef.current);
-        previewUrlRef.current = null;
-      }
-
-      const previewUrl = URL.createObjectURL(file);
+      // Valid file received: tracker revokes any existing preview URL before replacing
+      const previewUrl = blobUrlTrackerRef.current.create(file);
       setFileState({
         file,
         previewUrl,
@@ -170,8 +341,18 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
       setFileError(null);
       setOptimizedPayloadNotice(null);
       setErrors((prev) => ({ ...prev, image: undefined }));
+
+      onInvestigationUpdate?.({
+        imageBlob: file,
+        imageMetadata: {
+          name: file.name,
+          sizeBytes: file.size,
+          type: file.type,
+          lastModified: file.lastModified,
+        },
+      });
     },
-    [t]
+    [t, onInvestigationUpdate]
   );
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -209,13 +390,15 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
   };
 
   const handleRemoveImage = () => {
-    if (previewUrlRef.current) {
-      URL.revokeObjectURL(previewUrlRef.current);
-      previewUrlRef.current = null;
-    }
+    blobUrlTrackerRef.current.revokeCurrent();
+    previewUrlRef.current = null;
     setFileState(null);
     setFileError(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
+    onInvestigationUpdate?.({
+      imageBlob: null,
+      imageMetadata: null,
+    });
   };
 
   const handleOpenCamera = async () => {
@@ -331,7 +514,14 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
   };
 
   const handleInputChange = (field: keyof IntakeFormValues, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const updated = { ...prev, [field]: value };
+      onInvestigationUpdate?.({
+        formData: updated,
+        ...(field === 'boardName' && value.trim() ? { title: value.trim() } : {}),
+      });
+      return updated;
+    });
 
     // Real-time clearance of validation error if field now has valid input
     if (errors[field as keyof FieldValidationErrors] && value.trim() !== '') {
@@ -397,6 +587,10 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
     setIsStaged(true);
     setDiagnosisResult(null);
     setDiagnosisError(null);
+    onInvestigationUpdate?.({
+      isStaged: true,
+      formData: payload.formData,
+    });
   };
 
   const handleReturnToEdit = () => {
@@ -408,6 +602,11 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
     setDiagnosisError(null);
     setDiagnosisResult(null);
     setIsDiagnosing(false);
+    setReassessmentCount(0);
+    onActiveInvestigationChange?.(null);
+    onInvestigationUpdate?.({
+      isStaged: false,
+    });
   };
 
   const handleCancelDiagnosis = () => {
@@ -452,6 +651,10 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
 
       if (controller.signal.aborted) return;
       setDiagnosisResult(result);
+      onInvestigationUpdate?.({
+        diagnosis: result,
+        isStaged: true,
+      });
     } catch (err: unknown) {
       if (controller.signal.aborted) {
         return;
@@ -504,9 +707,8 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
         diagnosisAbortControllerRef.current.abort();
         diagnosisAbortControllerRef.current = null;
       }
-      if (fileState?.previewUrl) {
-        URL.revokeObjectURL(fileState.previewUrl);
-      }
+      blobUrlTrackerRef.current.revokeCurrent();
+      previewUrlRef.current = null;
       setFileState(null);
       setFileError(null);
       setOptimizedPayloadNotice(null);
@@ -524,51 +726,33 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
       setDiagnosisResult(null);
       setDiagnosisError(null);
       setIsDiagnosing(false);
+      setReassessmentCount(0);
+      onActiveInvestigationChange?.(null);
+      onNewInvestigationRequest?.();
     }
   };
 
   if (isStaged && stagedPayload && diagnosisResult) {
     return (
       <div className="diagnosis-flow-container">
-        <div className="investigation-context-strip" role="region" aria-label={t.stagedConfirmationTitle}>
-          <div className="context-strip-info">
-            <span className="context-strip-label">{t.stagedBoardLabel}:</span>
-            <span className="context-strip-value">{stagedPayload.formData.boardName || t.stagedNotSpecified}</span>
-            <span className="context-strip-divider">•</span>
-            <span className="context-strip-label">{t.stagedImageLabel}:</span>
-            <span className="context-strip-value tech-value" dir="ltr">
-              {stagedPayload.fileState.name} ({stagedPayload.fileState.sizeFormatted}{optimizedPayloadNotice ? ` • ${optimizedPayloadNotice}` : ''})
-            </span>
-          </div>
-          <button
-            type="button"
-            className="action-btn secondary-btn context-strip-btn"
-            onClick={handleReturnToEdit}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
-            <span>{t.editSymptomsBtn}</span>
-          </button>
-        </div>
-
         <DiagnosticResults
+          key={activeInvestigationRecord?.id || 'active_workbench'}
           diagnosis={diagnosisResult}
           formData={stagedPayload.formData}
+          imageFileState={stagedPayload.fileState}
           t={t}
+          lang={lang}
           onEditIntake={handleReturnToEdit}
           onNewInvestigation={handleNewInvestigation}
+          onReassessmentCountChange={setReassessmentCount}
+          investigationId={activeInvestigationRecord?.id}
+          initialEvidenceLog={activeInvestigationRecord?.evidenceLog}
+          initialReassessments={activeInvestigationRecord?.reassessments}
+          initialActivePerspective={activeInvestigationRecord?.activePerspective}
+          initialInspectorZoom={activeInvestigationRecord?.inspectorZoom}
+          initialInspectorPan={activeInvestigationRecord?.inspectorPan}
+          initialAssistantMessages={activeInvestigationRecord?.assistantMessages}
+          onInvestigationUpdate={onInvestigationUpdate}
         />
       </div>
     );
@@ -611,7 +795,7 @@ export function IntakeSection({ t, lang }: IntakeSectionProps) {
           </h2>
         </div>
         <span className="stage-status-badge">
-          {isStaged ? t.stagedReadyBadge : t.stageBadge}
+          {isStaged ? t.stagedReadyBadge : t.intakeBadge}
         </span>
       </div>
 

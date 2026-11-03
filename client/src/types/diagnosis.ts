@@ -82,20 +82,37 @@ export interface RecommendedCheck {
   safetyNotes: string[];
 }
 
+export type TelemetryUsageStatus = 'reported' | 'partial' | 'unavailable';
+export type DiagnosticRequestType = 'diagnosis' | 'reassessment';
+
 /**
- * Non-sensitive numeric completion metadata captured from the model provider.
+ * Non-sensitive operational and usage telemetry captured from the model provider.
  */
 export interface ModelCompletionMetadata {
+  /** Operational request type (diagnosis or reassessment) */
+  requestType?: DiagnosticRequestType;
+  /** AI provider identifier (e.g. 'baseten', 'meta') */
+  provider?: string;
+  /** Concrete model identifier dispatched (e.g. 'meta-models/muse-spark-open-1026') */
+  model?: string;
   /** Number of tokens evaluated in the prompt (if provided by model gateway) */
   promptTokens?: number;
+  inputTokens?: number;
   /** Number of tokens generated in the completion (if provided by model gateway) */
   completionTokens?: number;
+  outputTokens?: number;
   /** Total tokens processed (if provided by model gateway) */
   totalTokens?: number;
   /** Reason given by the model provider for terminating generation (e.g. 'stop', 'length') */
   finishReason?: string;
   /** Round-trip inference duration in milliseconds */
   durationMs: number;
+  /** Complete estimated request cost in USD based on published token pricing table (undefined if partial, unavailable, or unknown) */
+  estimatedCostUsd?: number;
+  /** Partial subtotal cost in USD (defined if and only if partial token usage is reported) */
+  partialCostUsd?: number;
+  /** Usage availability status: 'reported' (full), 'partial', or 'unavailable' */
+  usageStatus?: TelemetryUsageStatus;
 }
 
 /**
@@ -181,6 +198,8 @@ export interface EvidenceRecord {
   recordedAt: string;
   /** Optional reference to a previous evidence record superseded by this attempt */
   supersedesEvidenceId?: string;
+  /** Optional reference to a later evidence record that supersedes this record */
+  supersededByEvidenceId?: string;
 }
 
 /**

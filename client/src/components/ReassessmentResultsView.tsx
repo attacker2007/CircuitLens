@@ -13,6 +13,7 @@ import type {
   EvidenceRecord,
   RevisedHypothesisStatus,
 } from '../types/diagnosis';
+import { DiagnosticTelemetryCard } from './DiagnosticTelemetryCard';
 
 interface ReassessmentResultsViewProps {
   reassessment: DiagnosisReassessmentResponse;
@@ -428,6 +429,12 @@ export function ReassessmentResultsView({
           </ul>
         </div>
       )}
+      {/* 8. Reassessment Operational Telemetry */}
+      <DiagnosticTelemetryCard
+        telemetry={reassessment.metadata}
+        title={`${t.telemetryReassessmentTitle} (#${cycleNumber})`}
+        t={t}
+      />
     </div>
   );
 }
