@@ -119,7 +119,10 @@ ${conversationHistory.map((m) => `  <message role="${m.role}">\n    ${sanitizeXm
 </recent_conversation>`
     : '';
 
+  const depthXml = `<analysis_depth scope="${sanitizeXml(context.analysisDepth || 'standard')}" />`;
+
   return `<investigation_context board="${sanitizeXml(context.boardName)}" id="${sanitizeXml(context.investigationId)}">
+${depthXml}
 ${symptomsXml}
 ${hypothesesXml}
 ${evidenceXml}

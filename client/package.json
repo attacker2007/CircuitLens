@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:demo": "vite",
     "typecheck": "tsc -b",
     "test": "node --experimental-strip-types src/test-client.ts",
     "build": "tsc -b && vite build",

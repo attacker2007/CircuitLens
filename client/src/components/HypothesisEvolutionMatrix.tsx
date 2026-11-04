@@ -41,17 +41,17 @@ export function HypothesisEvolutionMatrix({
   const getStatusBadgeClass = (status: RoundHypothesisStatus): string => {
     switch (status) {
       case 'supported':
-        return 'matrix-badge-supported';
+        return 'matrix-badge-supported status-supported';
       case 'contradicted':
-        return 'matrix-badge-contradicted';
+        return 'matrix-badge-contradicted status-contradicted';
       case 'unresolved':
-        return 'matrix-badge-unresolved';
+        return 'matrix-badge-unresolved status-unresolved';
       case 'not_present':
-        return 'matrix-badge-absent';
+        return 'matrix-badge-absent status-absent';
       case 'omitted':
-        return 'matrix-badge-omitted';
+        return 'matrix-badge-omitted status-omitted';
       default:
-        return 'matrix-badge-unresolved';
+        return 'matrix-badge-unresolved status-unresolved';
     }
   };
 

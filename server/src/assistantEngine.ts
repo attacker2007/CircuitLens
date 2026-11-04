@@ -13,7 +13,12 @@ import type {
   AssistantChatResponse,
   AssistantMessage,
   AssistantSuggestedAction,
+  AssistantInvestigationContext,
 } from './types/assistant.js';
+import { createApiClient, extractMessageContent } from './metaClient.js';
+import { ASSISTANT_SYSTEM_PROMPT, buildAssistantUserPrompt } from './assistantPrompt.js';
+
+export const generateOfflineAssistantResponse = generateAssistantResponse;
 
 export function generateAssistantResponse(request: AssistantChatRequest): AssistantChatResponse {
   const { investigationId, message, context } = request;
@@ -254,5 +259,112 @@ Key context for this case:
     success: true,
     message: responseMessage,
     warning: 'Offline preview mode: Responses are generated using deterministic case-context logic without third-party model inference.',
+  };
+}
+
+/**
+ * Extracts contextual suggested actions from live model output.
+ */
+function extractLiveSuggestedActions(
+  replyText: string,
+  context: AssistantInvestigationContext
+): AssistantSuggestedAction[] {
+  const actions: AssistantSuggestedAction[] = [];
+  const lower = replyText.toLowerCase();
+
+  // If a hypothesis is mentioned, offer matrix inspection
+  for (const hyp of (context.currentHypotheses || []).slice(0, 3)) {
+    if (lower.includes(hyp.title.toLowerCase().slice(0, 20))) {
+      actions.push({
+        id: `act_hyp_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+        type: 'view_hypothesis',
+        label: `View "${hyp.title.slice(0, 25)}..." in Matrix`,
+        targetId: hyp.title,
+      });
+      break;
+    }
+  }
+
+  // If isolation or checks are discussed, offer to view recommended checks
+  if (lower.includes('isolation') || lower.includes('recommended check') || lower.includes('multimeter')) {
+    actions.push({
+      id: `act_chk_${Date.now()}`,
+      type: 'suggest_check',
+      label: 'View Recommended Checks',
+    });
+  }
+
+  return actions;
+}
+
+/**
+ * Executes a live contextual assistant chat call through the configured model provider (Meta/Baseten).
+ * Maintains zero client-side credentials, strict XML context encapsulation, and epistemic safety.
+ */
+export async function executeLiveAssistantChat(
+  request: AssistantChatRequest,
+  options?: { signal?: AbortSignal }
+): Promise<AssistantChatResponse> {
+  const { client, config } = createApiClient({ timeout: 45000, maxRetries: 0 });
+
+  const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+    {
+      role: 'system',
+      content: ASSISTANT_SYSTEM_PROMPT,
+    },
+  ];
+
+  // Include recent conversation turns for dialogue continuity (up to 6)
+  if (request.conversationHistory && request.conversationHistory.length > 0) {
+    const recent = request.conversationHistory.slice(-6);
+    for (const item of recent) {
+      if (item.role === 'user' || item.role === 'assistant') {
+        messages.push({
+          role: item.role,
+          content: item.content,
+        });
+      }
+    }
+  }
+
+  // Current user prompt with structured context
+  messages.push({
+    role: 'user',
+    content: buildAssistantUserPrompt(request),
+  });
+
+  const completion = (await client.chat.completions.create(
+    {
+      model: config.model,
+      messages,
+      temperature: 0.3,
+      max_tokens: 1500,
+    },
+    { signal: options?.signal }
+  )) as any;
+
+  const replyText = extractMessageContent(completion.choices?.[0]);
+  if (!replyText || replyText.trim().length === 0) {
+    throw new Error('Model produced empty response content for contextual assistant.');
+  }
+
+  const suggestedActions = extractLiveSuggestedActions(replyText, request.context);
+
+  const responseMessage: AssistantMessage = {
+    id: `asst_live_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    investigationId: request.investigationId,
+    role: 'assistant',
+    content: replyText.trim(),
+    timestamp: new Date().toISOString(),
+    status: 'sent',
+    isOfflinePreview: false,
+    provenance: 'live_provider',
+    providerName: config.provider,
+    suggestedActions: suggestedActions.length > 0 ? suggestedActions : undefined,
+  };
+
+  return {
+    success: true,
+    message: responseMessage,
   };
 }

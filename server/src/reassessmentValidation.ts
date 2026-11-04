@@ -17,6 +17,8 @@ import type {
   VisibleObservation,
   FaultHypothesis,
   RecommendedCheck,
+  AnalysisDepth,
+  CircuitTheoryUnderstanding,
 } from './types/diagnosis.js';
 
 export class ReassessmentRequestValidationError extends Error {
@@ -684,10 +686,21 @@ export function validateReassessmentRequest(payload: unknown): DiagnosisReassess
     additionalTechnicianNotes = payload.additionalTechnicianNotes.trim() || undefined;
   }
 
+  let analysisDepth: AnalysisDepth | undefined;
+  if (payload.analysisDepth !== undefined && payload.analysisDepth !== null) {
+    if (typeof payload.analysisDepth !== 'string' || (payload.analysisDepth !== 'basic' && payload.analysisDepth !== 'standard' && payload.analysisDepth !== 'advanced')) {
+      throw new ReassessmentRequestValidationError(
+        'Optional field "analysisDepth" must be one of "basic", "standard", or "advanced" if provided.'
+      );
+    }
+    analysisDepth = payload.analysisDepth;
+  }
+
   return {
     diagnosticContext,
     evidence,
     additionalTechnicianNotes,
+    analysisDepth,
   };
 }
 
@@ -1026,6 +1039,48 @@ export function validateReassessmentResponse(
     REASSESSMENT_RESPONSE_LIMITS.MAX_LIMITATION_LENGTH
   );
 
+  let analysisDepth: AnalysisDepth | undefined = undefined;
+  if (data.analysisDepth === 'basic' || data.analysisDepth === 'standard' || data.analysisDepth === 'advanced') {
+    analysisDepth = data.analysisDepth;
+  }
+
+  let circuitUnderstanding: CircuitTheoryUnderstanding | undefined = undefined;
+  if (data.circuitUnderstanding && typeof data.circuitUnderstanding === 'object' && !Array.isArray(data.circuitUnderstanding)) {
+    const cu = data.circuitUnderstanding as Record<string, unknown>;
+    circuitUnderstanding = {
+      operatingPrinciple: typeof cu.operatingPrinciple === 'string' ? cu.operatingPrinciple : '',
+      relevantComponents: Array.isArray(cu.relevantComponents)
+        ? cu.relevantComponents.map((rc: any) => ({
+            designator: String(rc?.designator || ''),
+            function: String(rc?.function || ''),
+            status: rc?.status === 'confirmed' || rc?.status === 'inferred' || rc?.status === 'unknown' ? rc.status : 'inferred',
+          }))
+        : [],
+      expectedBehavior: typeof cu.expectedBehavior === 'string' ? cu.expectedBehavior : '',
+      failureMechanismTheory: typeof cu.failureMechanismTheory === 'string' ? cu.failureMechanismTheory : '',
+      functionalBlocks: Array.isArray(cu.functionalBlocks)
+        ? cu.functionalBlocks.map((fb: any) => ({
+            id: String(fb?.id || ''),
+            label: String(fb?.label || ''),
+            category: fb?.category || 'regulation',
+            status: fb?.status === 'confirmed' || fb?.status === 'inferred' || fb?.status === 'unknown' ? fb.status : 'inferred',
+            description: typeof fb?.description === 'string' ? fb.description : undefined,
+            components: Array.isArray(fb?.components) ? fb.components.map(String) : undefined,
+          }))
+        : undefined,
+      blockConnections: Array.isArray(cu.blockConnections)
+        ? cu.blockConnections.map((bc: any) => ({
+            from: String(bc?.from || ''),
+            to: String(bc?.to || ''),
+            signalType: bc?.signalType || 'power',
+            status: bc?.status === 'confirmed' || bc?.status === 'inferred' || bc?.status === 'unknown' ? bc.status : 'inferred',
+            description: typeof bc?.description === 'string' ? bc.description : undefined,
+          }))
+        : undefined,
+      diagramLimitations: typeof cu.diagramLimitations === 'string' ? cu.diagramLimitations : undefined,
+    };
+  }
+
   return {
     summary,
     evidenceSynthesis,
@@ -1033,6 +1088,8 @@ export function validateReassessmentResponse(
     nextRecommendedChecks,
     safetyWarnings,
     limitations,
+    ...(analysisDepth ? { analysisDepth } : {}),
+    ...(circuitUnderstanding ? { circuitUnderstanding } : {}),
   };
 }
 

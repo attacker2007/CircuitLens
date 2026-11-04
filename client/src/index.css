@@ -6,6 +6,9 @@
   --bg-app: #080d1a;
   --bg-panel: #0d1527;
   --bg-panel-elevated: #131e36;
+  --bg-card: #131e36;
+  --bg-surface: #0a1122;
+  --bg-hover: #1e2d4d;
   --bg-input: #0a1122;
   --border-color: #1a2744;
   --border-highlight: #00d2ff;
@@ -38,6 +41,9 @@
   --bg-app: #f4f6fa;
   --bg-panel: #ffffff;
   --bg-panel-elevated: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-surface: #f1f5f9;
+  --bg-hover: #e2e8f0;
   --bg-input: #eef2f6;
   --border-color: #d8e2ee;
   --border-highlight: #0284c7;

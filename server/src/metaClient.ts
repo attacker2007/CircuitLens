@@ -446,16 +446,30 @@ export const DIAGNOSTIC_SYSTEM_PROMPT = `You are CircuitLens, an expert AI elect
 CRITICAL ELECTRICAL SAFETY & DIAGNOSTIC RULES:
 1. SAFETY FIRST: Never advise touching energized circuitry, probing hazardous or mains voltages, or undertaking high-risk procedures without explicit precautions, personal protective equipment (PPE), and isolation.
 2. UNPOWERED CHECKS FIRST: Prioritize non-destructive, unpowered tests (visual inspection under magnification, cold resistance, diode checks, continuity) before suggesting any powered in-circuit measurements.
-3. CONCISE & ACTIONABLE REPORTING:
+3. CONCISE & ACTIONABLE REPORTING (STRICT TOKEN BUDGET):
    - Provide a focused diagnostic assessment with at most 3 primary fault hypotheses (the most plausible failure mechanisms).
    - Provide at most 3 prioritized troubleshooting checks, starting with unpowered tests first.
-   - Keep observations, hypotheses, and check procedures concise, evidence-grounded, and free of redundant or speculative prose.
+   - You must strictly constrain text length so the entire JSON output completes within token limits:
+     * "summary": Exactly 1-2 concise sentences summarizing primary suspect areas or normal visual baseline.
+     * "visibleObservations": 1 to 4 concrete optical findings directly visible in the photograph. Concise 1-sentence description and evidence.
+     * "hypotheses": At most 3 primary fault hypotheses (or baseline checks if condition is uncertain). Each hypothesis "reasoning" MUST be strictly 1-2 sentences explaining the technical connection. "suggestedVerification" MUST be 1 concise sentence.
+     * "recommendedChecks": At most 3 prioritized troubleshooting checks, unpowered checks first. "procedure" MUST be strictly 1-2 actionable sentences.
+     * "limitations" and "safetyWarnings": Exactly 1-2 concise bullet points each.
+     * Avoid discursive narrative, historical context, or conversational filler to guarantee completion.
 4. SEPARATE OBSERVATIONS FROM HYPOTHESES:
    - "visibleObservations": List only factual, physical, optical findings directly visible in the photograph (e.g., component markings, solder bridging, flux residue, burnt substrate, cracked package, lifted trace).
    - "hypotheses": Formulate deductive potential root causes explaining the observed symptoms and visual cues. Never present a suspected fault as confirmed without adequate proof.
 5. HONEST UNCERTAINTY & LIMITATIONS: Never invent component part numbers, pinouts, test point voltages, or nets that cannot be clearly verified. Explicitly declare when the image is blurry, angled, occluded, or insufficient to reach conclusions.
 6. QUALITATIVE CONFIDENCE: Assign qualitative confidence ("low", "medium", or "high") based on the strength of visual/reported evidence. Do NOT describe confidence as a calibrated mathematical probability.
-7. STRICT JSON OUTPUT: Return ONLY a single valid JSON object strictly complying with the schema below. Do not wrap with markdown code fences (no \`\`\`json) and do not provide explanatory prose outside the JSON object.
+7. STRICT JSON OUTPUT & MANDATORY SCHEMA CONTRACT: Return ONLY a single valid JSON object strictly complying with the schema below. Do not wrap with markdown code fences (no \`\`\`json) and do not provide explanatory prose outside the JSON object. ALL 6 required top-level fields must ALWAYS be present: "summary", "visibleObservations", "hypotheses", "recommendedChecks", "limitations", and "safetyWarnings". Never omit "limitations" (use empty array [] if none) or "safetyWarnings" (must contain at least 1 essential electrical safety precaution).
+8. UNCERTAIN INTAKE & NORMAL OPERATION CHECKS:
+   - When the technician reports "I don't know what's wrong", expresses uncertainty, reports no active defect, or requests a normal-operation check:
+     a) Do NOT fabricate or assume a phantom fault or hallucinate defects.
+     b) In "summary", explicitly state that no specific fault was reported, identify the board/architecture if recognizable, and note which landmarks appear visually intact.
+     c) Explain what operational context or technician observations would help clarify status (e.g., input voltage, power LED status, load behavior).
+     d) Formulate hypotheses as baseline verification (e.g., power rail continuity, solder integrity, thermal dissipation) or normal-baseline confirmation.
+     e) In "recommendedChecks", guide the technician with simple, sequential, safe unpowered observations and measurements described in accessible, plain language.
+     f) In "limitations", clearly state that optical inspection alone cannot verify internal silicon health or guarantee full functionality without dynamic testing.
 
 REQUIRED JSON STRUCTURE:
 {
@@ -515,9 +529,45 @@ function buildDiagnosticUserPrompt(request: DiagnosisRequest): string {
     lines.push(`Additional Technician Notes: ${request.additionalNotes.trim()}`);
   }
 
+  const depth = request.analysisDepth || 'standard';
+  lines.push(`Requested Analysis Depth: ${depth.toUpperCase()}`);
+
+  // Check if intake expresses uncertainty, no known fault, or normal-operation check
+  const isUncertainOrNormal = /don'?t\s+know|unsure|not\s+sure|unknown|normal|baseline|check\s+if|health\s+check|no\s+(known\s+)?(fault|issue|defect|problem)/i.test(
+    `${request.expectedBehavior} ${request.observedBehavior} ${request.additionalNotes || ''}`
+  );
+
+  if (isUncertainOrNormal) {
+    lines.push(
+      '',
+      'INTAKE GUIDANCE DIRECTIVE:',
+      'The technician reports an uncertain condition or normal-operation baseline check. Do NOT invent or assume a phantom defect.',
+      'Provide constructive triage: describe visible landmarks that appear intact, explain what measurements or observations would clarify status, and suggest safe, sequential unpowered baseline checks.'
+    );
+  }
+
+  if (depth === 'basic') {
+    lines.push(
+      'MODE BASIC (COMPACT TRIAGE): Return all 6 required schema keys in compact form.',
+      'Output 1-2 visible observations, 1-2 primary hypotheses (strictly 1 sentence reasoning each), 2 simple unpowered checks, limitations (array, [] if none), and at least 1 safety warning (array).',
+      'Never omit "limitations" or "safetyWarnings". Keep all text strictly minimal and concise to complete well within token capacity.'
+    );
+  } else if (depth === 'advanced') {
+    lines.push(
+      'MODE ADVANCED: Provide focused technical analysis of circuit interactions, signal/power paths, and parallel loading.',
+      'Return all 6 required schema keys: at most 3 hypotheses (max 2 sentences reasoning each), at most 3 prioritized checks, limitations (array), and safetyWarnings (array).',
+      'Optionally include "circuitUnderstanding" object. Do not output verbose essays.'
+    );
+  } else {
+    lines.push(
+      'MODE STANDARD: Provide balanced visual and electrical diagnosis.',
+      'Return all 6 required schema keys: 2-3 visible observations, at most 3 hypotheses (1-2 sentences reasoning each), up to 3 prioritized checks (unpowered checks first), limitations (array), and safetyWarnings (array).'
+    );
+  }
+
   lines.push(
     '',
-    'Keep your response concise: provide at most 3 high-plausibility fault hypotheses and at most 3 prioritized troubleshooting checks (unpowered checks first).',
+    'Keep your response concise: strictly adhere to the token budget and field length limits.',
     'Provide your complete diagnostic assessment as a single valid JSON object strictly matching the requested schema.'
   );
   return lines.join('\n');
@@ -635,7 +685,7 @@ export async function analyzeCircuitImage(
 
   if (finishReason === 'length') {
     throw new DiagnosisOutputLimitError(
-      `Model output reached the maximum completion token limit (${completionTokens ?? maxTokens} tokens) before completing the diagnostic assessment.`,
+      `Model output reached the maximum completion token limit (${completionTokens ?? maxTokens} tokens) before completing the diagnostic assessment. Switch to Basic analysis depth or provide more concise intake notes.`,
       completionTokens,
       maxTokens
     );
@@ -663,6 +713,14 @@ export async function analyzeCircuitImage(
     partialCostUsd: costEstimate.partialCostUsd,
     usageStatus: deriveUsageStatus(validPrompt, validCompletion),
   };
+
+  if (!diagnosis.analysisDepth && request.analysisDepth) {
+    diagnosis.analysisDepth = request.analysisDepth;
+  }
+
+  diagnosis.provenance = 'live_provider';
+  diagnosis.isOfflineMock = false;
+  diagnosis.executionMode = 'live';
 
   return diagnosis;
 }
@@ -961,6 +1019,14 @@ export async function reassessCircuitEvidence(
     partialCostUsd: costEstimate.partialCostUsd,
     usageStatus: deriveUsageStatus(validPrompt, validCompletion),
   };
+
+  if (!reassessment.analysisDepth && request.analysisDepth) {
+    reassessment.analysisDepth = request.analysisDepth;
+  }
+
+  reassessment.provenance = 'live_provider';
+  reassessment.isOfflineMock = false;
+  reassessment.executionMode = 'live';
 
   return reassessment;
 }

@@ -15,7 +15,7 @@
  * - Fully accessible keyboard controls and focus management.
  */
 
-import { useState, useRef, useEffect, useCallback, type WheelEvent, type PointerEvent, type TouchEvent, type KeyboardEvent } from 'react';
+import { useState, useRef, useEffect, useCallback, type PointerEvent, type TouchEvent, type KeyboardEvent } from 'react';
 import type { Translations } from '../i18n';
 
 export interface CircuitImageInspectorProps {
@@ -207,27 +207,38 @@ export function CircuitImageInspector({
     }
   };
 
-  // Mouse wheel zoom centered around pointer
-  const handleWheel = (e: WheelEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-    setZoom((prevZoom) => {
-      const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(prevZoom * factor * 100) / 100));
-      if (nextZoom === prevZoom || !viewportRef.current) return prevZoom;
+  // Native non-passive wheel zoom preventing unintended surrounding page scroll
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
 
-      const rect = viewportRef.current.getBoundingClientRect();
-      const cursorX = e.clientX - (rect.left + rect.width / 2);
-      const cursorY = e.clientY - (rect.top + rect.height / 2);
+    const onNativeWheel = (e: globalThis.WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      setZoom((prevZoom) => {
+        const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(prevZoom * factor * 100) / 100));
+        if (nextZoom === prevZoom || !el) return prevZoom;
 
-      const ratio = nextZoom / prevZoom;
-      setPan((prevPan) => ({
-        x: Math.round(cursorX - (cursorX - prevPan.x) * ratio),
-        y: Math.round(cursorY - (cursorY - prevPan.y) * ratio),
-      }));
+        const rect = el.getBoundingClientRect();
+        const cursorX = e.clientX - (rect.left + rect.width / 2);
+        const cursorY = e.clientY - (rect.top + rect.height / 2);
 
-      return nextZoom;
-    });
-  };
+        const ratio = nextZoom / prevZoom;
+        setPan((prevPan) => ({
+          x: Math.round(cursorX - (cursorX - prevPan.x) * ratio),
+          y: Math.round(cursorY - (cursorY - prevPan.y) * ratio),
+        }));
+
+        return nextZoom;
+      });
+    };
+
+    el.addEventListener('wheel', onNativeWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', onNativeWheel);
+    };
+  }, []);
 
   // Pointer drag-to-pan handlers
   const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
@@ -519,7 +530,6 @@ export function CircuitImageInspector({
         ref={viewportRef}
         className={`inspector-viewport ${isDragging ? 'dragging' : ''}`}
         tabIndex={0}
-        onWheel={handleWheel}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

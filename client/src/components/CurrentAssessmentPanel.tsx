@@ -127,7 +127,13 @@ export function CurrentAssessmentPanel({
                   <li key={hyp.trackingKey} className="assessment-hyp-item item-supported">
                     <strong className="hyp-item-title">{hyp.displayTitle}</strong>
                     <div className="hyp-item-meta">
-                      <span className="hyp-conf-badge">{hyp.currentConfidence?.toUpperCase()}</span>
+                      <span
+                        className={`hyp-conf-badge conf-${hyp.currentConfidence?.toLowerCase() || 'medium'}`}
+                        aria-label={`Confidence: ${hyp.currentConfidence}`}
+                      >
+                        {hyp.currentConfidence?.toUpperCase()}
+                      </span>
+                      <span className="hyp-meta-separator" aria-hidden="true">•</span>
                       <span className="hyp-evidence-cites">
                         {hyp.allCitingEvidenceIds.length > 0
                           ? `Corroborated by ${hyp.allCitingEvidenceIds.join(', ')}`
@@ -159,7 +165,13 @@ export function CurrentAssessmentPanel({
                   <li key={hyp.trackingKey} className="assessment-hyp-item item-contradicted">
                     <strong className="hyp-item-title">{hyp.displayTitle}</strong>
                     <div className="hyp-item-meta">
-                      <span className="hyp-conf-badge">{hyp.currentConfidence?.toUpperCase()}</span>
+                      <span
+                        className={`hyp-conf-badge conf-${hyp.currentConfidence?.toLowerCase() || 'medium'}`}
+                        aria-label={`Confidence: ${hyp.currentConfidence}`}
+                      >
+                        {hyp.currentConfidence?.toUpperCase()}
+                      </span>
+                      <span className="hyp-meta-separator" aria-hidden="true">•</span>
                       <span className="hyp-evidence-cites">
                         {hyp.allCitingEvidenceIds.length > 0
                           ? `Contradicted by ${hyp.allCitingEvidenceIds.join(', ')}`
@@ -191,7 +203,13 @@ export function CurrentAssessmentPanel({
                   <li key={hyp.trackingKey} className="assessment-hyp-item item-unresolved">
                     <strong className="hyp-item-title">{hyp.displayTitle}</strong>
                     <div className="hyp-item-meta">
-                      <span className="hyp-conf-badge">{hyp.currentConfidence?.toUpperCase()}</span>
+                      <span
+                        className={`hyp-conf-badge conf-${hyp.currentConfidence?.toLowerCase() || 'medium'}`}
+                        aria-label={`Confidence: ${hyp.currentConfidence}`}
+                      >
+                        {hyp.currentConfidence?.toUpperCase()}
+                      </span>
+                      <span className="hyp-meta-separator" aria-hidden="true">•</span>
                       <span className="hyp-evidence-cites">
                         {hyp.introducedInRound > 0
                           ? `Introduced in R${hyp.introducedInRound}`

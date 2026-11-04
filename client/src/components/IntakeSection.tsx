@@ -7,7 +7,7 @@ import type {
   FieldValidationErrors,
   ActiveInvestigationInfo,
 } from '../types/intake';
-import type { DiagnosisResponse } from '../types/diagnosis';
+import type { DiagnosisResponse, AnalysisDepth } from '../types/diagnosis';
 import {
   formatFileSize,
   isAllowedImageFile,
@@ -56,6 +56,56 @@ export function IntakeSection({
     additionalNotes: '',
   });
 
+  // Guided intake scenario mode: 'fault' | 'uncertain' | 'check'
+  const [intakeScenario, setIntakeScenario] = useState<'fault' | 'uncertain' | 'check'>('fault');
+
+  const handleSelectScenario = (scenario: 'fault' | 'uncertain' | 'check') => {
+    setIntakeScenario(scenario);
+    if (scenario === 'uncertain') {
+      setFormData((prev) => {
+        const updated = {
+          ...prev,
+          expectedBehavior: t.intakeUncertainExpected,
+          observedBehavior: t.intakeUncertainObserved,
+        };
+        onInvestigationUpdate?.({ formData: updated });
+        return updated;
+      });
+      setErrors((prev) => ({
+        ...prev,
+        expectedBehavior: undefined,
+        observedBehavior: undefined,
+      }));
+    } else if (scenario === 'check') {
+      setFormData((prev) => {
+        const updated = {
+          ...prev,
+          expectedBehavior: t.intakeCheckExpected,
+          observedBehavior: t.intakeCheckObserved,
+        };
+        onInvestigationUpdate?.({ formData: updated });
+        return updated;
+      });
+      setErrors((prev) => ({
+        ...prev,
+        expectedBehavior: undefined,
+        observedBehavior: undefined,
+      }));
+    } else {
+      // Revert to custom fault mode if currently on canned text
+      if (
+        formData.expectedBehavior === t.intakeUncertainExpected ||
+        formData.expectedBehavior === t.intakeCheckExpected
+      ) {
+        setFormData((prev) => {
+          const updated = { ...prev, expectedBehavior: '', observedBehavior: '' };
+          onInvestigationUpdate?.({ formData: updated });
+          return updated;
+        });
+      }
+    }
+  };
+
   // Validation state
   const [errors, setErrors] = useState<FieldValidationErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -71,7 +121,30 @@ export function IntakeSection({
     title: string;
     message: string;
     isRetryable: boolean;
+    isOutputLimit?: boolean;
   } | null>(null);
+
+  // Phase 3: Configurable Analysis Depth (persisted to localStorage)
+  const [analysisDepth, setAnalysisDepth] = useState<AnalysisDepth>(() => {
+    try {
+      const saved = localStorage.getItem('circuitlens_analysis_depth');
+      if (saved === 'basic' || saved === 'standard' || saved === 'advanced') {
+        return saved;
+      }
+    } catch {
+      // localStorage unavailable or restricted
+    }
+    return 'standard';
+  });
+
+  const handleAnalysisDepthChange = (depth: AnalysisDepth) => {
+    setAnalysisDepth(depth);
+    try {
+      localStorage.setItem('circuitlens_analysis_depth', depth);
+    } catch {
+      // localStorage unavailable or restricted
+    }
+  };
 
   // Camera capture modal state
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -226,6 +299,9 @@ export function IntakeSection({
           estimatedCostUsd: 0.015065,
           usageStatus: 'reported',
         },
+        provenance: 'offline_fixture',
+        isOfflineMock: true,
+        executionMode: 'mock_demo',
       });
     }
   }, []);
@@ -546,7 +622,11 @@ export function IntakeSection({
       newErrors.image = t.imageRequiredError;
     }
     if (!formData.expectedBehavior.trim()) {
-      newErrors.expectedBehavior = t.expectedBehaviorRequiredError;
+      if (/don'?t\s+know|unsure|not\s+sure|unknown|check|normal/i.test(formData.observedBehavior)) {
+        formData.expectedBehavior = t.intakeUncertainExpected;
+      } else {
+        newErrors.expectedBehavior = t.expectedBehaviorRequiredError;
+      }
     }
     if (!formData.observedBehavior.trim()) {
       newErrors.observedBehavior = t.observedBehaviorRequiredError;
@@ -618,8 +698,13 @@ export function IntakeSection({
     setDiagnosisError(null);
   };
 
-  const handleRunDiagnosis = async () => {
+  const handleRunDiagnosis = async (depthOverride?: AnalysisDepth) => {
     if (isDiagnosing || !stagedPayload || !stagedPayload.fileState) return;
+
+    const targetDepth = depthOverride || analysisDepth;
+    if (depthOverride && depthOverride !== analysisDepth) {
+      handleAnalysisDepthChange(depthOverride);
+    }
 
     if (diagnosisAbortControllerRef.current) {
       diagnosisAbortControllerRef.current.abort();
@@ -645,6 +730,7 @@ export function IntakeSection({
           observedBehavior: stagedPayload.formData.observedBehavior,
           relevantComponents: stagedPayload.formData.relevantComponents || undefined,
           additionalNotes: stagedPayload.formData.additionalNotes || undefined,
+          analysisDepth: targetDepth,
         },
         controller.signal
       );
@@ -654,6 +740,7 @@ export function IntakeSection({
       onInvestigationUpdate?.({
         diagnosis: result,
         isStaged: true,
+        analysisDepth: targetDepth,
       });
     } catch (err: unknown) {
       if (controller.signal.aborted) {
@@ -664,6 +751,7 @@ export function IntakeSection({
           return;
         }
         let userMessage = err.message;
+        const isOutputLimit = err.errorType === 'OUTPUT_TOKEN_LIMIT';
         if (err.errorType === 'MISSING_API_KEY') {
           userMessage = t.missingApiKeyErrorNotice;
         } else if (err.errorType === 'OUTPUT_TOKEN_LIMIT') {
@@ -685,6 +773,7 @@ export function IntakeSection({
           title: t.diagnosisErrorTitle,
           message: userMessage,
           isRetryable: err.isRetryable,
+          isOutputLimit,
         });
       } else {
         setDiagnosisError({
@@ -760,6 +849,16 @@ export function IntakeSection({
 
   return (
     <section className="card-panel intake-card-panel" aria-labelledby="intake-heading">
+      {/* Client-side mock fixture indicator */}
+      {typeof window !== 'undefined' && window.location.search.includes('mock=true') && (
+        <div className="client-mock-fixture-banner" role="status" aria-label="Mock fixture notice">
+          <span className="fixture-badge">CLIENT DEMO FIXTURE (?mock=true)</span>
+          <span>
+            Pre-populated reference STM32 dataset loaded directly into client state for UI demonstration. No backend network request made.
+          </span>
+        </div>
+      )}
+
       {/* Hidden standard file picker for files and gallery */}
       <input
         ref={fileInputRef}
@@ -794,9 +893,30 @@ export function IntakeSection({
             {t.intakeSectionTitle}
           </h2>
         </div>
-        <span className="stage-status-badge">
-          {isStaged ? t.stagedReadyBadge : t.intakeBadge}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {!isStaged && (
+            <button
+              type="button"
+              className="control-btn outline-btn"
+              style={{ fontSize: '0.75rem', padding: '0.25rem 0.55rem', borderRadius: '4px' }}
+              onClick={() => {
+                setFormData({
+                  boardName: 'Arduino Uno SMD Edition',
+                  expectedBehavior: 'Powers from 5V USB-B or 9V DC barrel jack; 5V and 3.3V rails active with ON LED illuminated.',
+                  observedBehavior: 'Dead board; 5V rail collapses to 0.4V on both inputs with excessive current draw; ON LED dark.',
+                  relevantComponents: 'U1 (NCP1117ST50T3G), F1 polyfuse, C1/C2 (47uF caps)',
+                  additionalNotes: 'Board disconnected immediately to avoid thermal runaway. No visible burns on top side.',
+                });
+              }}
+              title="Pre-fill benchmark Arduino Uno SMD failure scenario for demonstration"
+            >
+              ⚡ Pre-fill Demo Case
+            </button>
+          )}
+          <span className="stage-status-badge">
+            {isStaged ? t.stagedReadyBadge : t.intakeBadge}
+          </span>
+        </div>
       </div>
 
       <p className="intake-section-desc">{t.intakeSectionSubtitle}</p>
@@ -853,6 +973,18 @@ export function IntakeSection({
                   {stagedPayload.formData.relevantComponents || t.stagedNotSpecified}
                 </span>
               </div>
+              <div className="staged-meta-item">
+                <span className="staged-meta-label">{t.analysisDepthLabel || 'Analysis Depth'}:</span>
+                <span className="staged-meta-value tech-value">
+                  <span className="stage-status-badge depth-indicator-badge">
+                    {analysisDepth === 'basic'
+                      ? (t.depthBasic || 'Basic')
+                      : analysisDepth === 'advanced'
+                      ? (t.depthAdvanced || 'Advanced')
+                      : (t.depthStandard || 'Standard')}
+                  </span>
+                </span>
+              </div>
             </div>
           </div>
 
@@ -897,11 +1029,36 @@ export function IntakeSection({
               </div>
               <p className="diagnosis-error-message">{diagnosisError.message}</p>
               <div className="diagnosis-error-actions">
+                {diagnosisError.isOutputLimit && analysisDepth !== 'basic' && (
+                  <button
+                    type="button"
+                    className="action-btn primary-btn quick-basic-retry-btn"
+                    onClick={() => {
+                      handleAnalysisDepthChange('basic');
+                      handleRunDiagnosis('basic');
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                    </svg>
+                    <span>{t.quickSwitchToBasicBtn}</span>
+                  </button>
+                )}
                 {diagnosisError.isRetryable && (
                   <button
                     type="button"
                     className="action-btn primary-btn"
-                    onClick={handleRunDiagnosis}
+                    onClick={() => handleRunDiagnosis()}
                   >
                     <svg
                       width="16"
@@ -1016,7 +1173,7 @@ export function IntakeSection({
               <button
                 type="button"
                 className="action-btn primary-btn start-diagnosis-btn"
-                onClick={handleRunDiagnosis}
+                onClick={() => handleRunDiagnosis()}
               >
                 <svg
                   width="16"
@@ -1233,6 +1390,42 @@ export function IntakeSection({
           <div className="form-fields-container">
             <h3 className="form-subheading">{t.formSectionTitle}</h3>
 
+            {/* Intake Guidance Scenarios */}
+            <div className="intake-guidance-container" role="region" aria-label={t.intakeGuidanceLabel}>
+              <div className="guidance-chips-group">
+                <button
+                  type="button"
+                  className={`guidance-chip ${intakeScenario === 'fault' ? 'active' : ''}`}
+                  onClick={() => handleSelectScenario('fault')}
+                  title={t.intakeModeFaultDesc}
+                  aria-pressed={intakeScenario === 'fault'}
+                >
+                  <span className="guidance-chip-icon">⚡</span>
+                  <span className="guidance-chip-text">{t.intakeModeFault}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`guidance-chip ${intakeScenario === 'uncertain' ? 'active' : ''}`}
+                  onClick={() => handleSelectScenario('uncertain')}
+                  title={t.intakeModeUncertainDesc}
+                  aria-pressed={intakeScenario === 'uncertain'}
+                >
+                  <span className="guidance-chip-icon">❓</span>
+                  <span className="guidance-chip-text">{t.intakeModeUncertain}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`guidance-chip ${intakeScenario === 'check' ? 'active' : ''}`}
+                  onClick={() => handleSelectScenario('check')}
+                  title={t.intakeModeCheckDesc}
+                  aria-pressed={intakeScenario === 'check'}
+                >
+                  <span className="guidance-chip-icon">🔍</span>
+                  <span className="guidance-chip-text">{t.intakeModeCheck}</span>
+                </button>
+              </div>
+            </div>
+
             {/* Board / Circuit Identifier (Optional) */}
             <div className="form-field-group">
               <label htmlFor="board-name-input" className="field-label">
@@ -1390,6 +1583,53 @@ export function IntakeSection({
                 onChange={(e) => handleInputChange('additionalNotes', e.target.value)}
                 dir="auto"
               />
+            </div>
+
+            {/* Analysis Depth Selector */}
+            <div className="form-field-group depth-control-group">
+              <label className="field-label" id="depth-selector-label">
+                <span>{t.analysisDepthLabel || 'Analysis Depth'}</span>
+              </label>
+              <div
+                className="depth-selector-group"
+                role="radiogroup"
+                aria-labelledby="depth-selector-label"
+              >
+                {(['basic', 'standard', 'advanced'] as AnalysisDepth[]).map((depth) => {
+                  const isSelected = analysisDepth === depth;
+                  const label =
+                    depth === 'basic'
+                      ? (t.depthBasic || 'Basic')
+                      : depth === 'standard'
+                      ? (t.depthStandard || 'Standard')
+                      : (t.depthAdvanced || 'Advanced');
+                  const desc =
+                    depth === 'basic'
+                      ? (t.depthBasicDesc || 'Rapid triage & visual defect scan')
+                      : depth === 'standard'
+                      ? (t.depthStandardDesc || 'Comprehensive diagnosis & safety checks')
+                      : (t.depthAdvancedDesc || 'In-depth circuit theory & block modeling');
+                  return (
+                    <button
+                      key={depth}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      className={`depth-option-btn ${isSelected ? 'selected active' : ''}`}
+                      onClick={() => handleAnalysisDepthChange(depth)}
+                    >
+                      <div className="depth-option-header">
+                        <span className="depth-option-indicator" aria-hidden="true" />
+                        <span className="depth-option-name">{label}</span>
+                        {depth === 'standard' && (
+                          <span className="depth-default-pill">Default</span>
+                        )}
+                      </div>
+                      <span className="depth-option-desc">{desc}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 

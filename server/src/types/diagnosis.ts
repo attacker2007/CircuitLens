@@ -9,6 +9,54 @@
 /** Qualitative confidence rating for observations and hypotheses */
 export type ConfidenceLevel = 'low' | 'medium' | 'high';
 
+/** Analysis depth scope level for requested assessment detail */
+export type AnalysisDepth = 'basic' | 'standard' | 'advanced';
+
+/** Functional block category for circuit representation */
+export type CircuitBlockCategory =
+  | 'power_input'
+  | 'regulation'
+  | 'protection'
+  | 'signal_processing'
+  | 'control'
+  | 'output_load';
+
+/** Connection confidence status distinguishing factual from theoretical links */
+export type ConnectionConfidence = 'confirmed' | 'inferred' | 'unknown';
+
+export interface CircuitComponentRole {
+  designator: string;
+  function: string;
+  status: ConnectionConfidence;
+}
+
+export interface CircuitBlockNode {
+  id: string;
+  label: string;
+  category: CircuitBlockCategory;
+  status: ConnectionConfidence;
+  description?: string;
+  components?: string[];
+}
+
+export interface CircuitBlockConnection {
+  from: string;
+  to: string;
+  signalType: 'power' | 'ground' | 'data' | 'control';
+  status: ConnectionConfidence;
+  description?: string;
+}
+
+export interface CircuitTheoryUnderstanding {
+  operatingPrinciple: string;
+  relevantComponents: CircuitComponentRole[];
+  expectedBehavior: string;
+  failureMechanismTheory: string;
+  functionalBlocks?: CircuitBlockNode[];
+  blockConnections?: CircuitBlockConnection[];
+  diagramLimitations?: string;
+}
+
 /**
  * Diagnostic intake request payload sent from client to backend.
  *
@@ -30,6 +78,8 @@ export interface DiagnosisRequest {
   relevantComponents?: string;
   /** Optional technician notes, environmental context, or prior rework history */
   additionalNotes?: string;
+  /** Optional requested analysis depth ('basic' | 'standard' | 'advanced') */
+  analysisDepth?: AnalysisDepth;
 }
 
 /**
@@ -129,8 +179,18 @@ export interface DiagnosisResponse {
   limitations: string[];
   /** Essential precautions regarding hazardous voltages, static discharge, and power sequencing */
   safetyWarnings: string[];
+  /** Optional circuit theory and functional block understanding */
+  circuitUnderstanding?: CircuitTheoryUnderstanding;
+  /** Optional analysis depth used for this assessment */
+  analysisDepth?: AnalysisDepth;
   /** Optional non-sensitive execution and token usage metadata */
   metadata?: ModelCompletionMetadata;
+  /** Execution provenance: 'live_provider' | 'offline_fixture' */
+  provenance?: 'live_provider' | 'offline_fixture';
+  /** Whether this assessment originated from deterministic offline mock replay */
+  isOfflineMock?: boolean;
+  /** Explicit execution mode ('live' | 'mock_demo') */
+  executionMode?: 'live' | 'mock_demo';
 }
 
 /**
@@ -220,6 +280,8 @@ export interface DiagnosisReassessmentRequest {
   evidence: EvidenceRecord[];
   /** Optional technician commentary or environmental update (max 1000 chars) */
   additionalTechnicianNotes?: string;
+  /** Optional requested analysis depth ('basic' | 'standard' | 'advanced') */
+  analysisDepth?: AnalysisDepth;
 }
 
 /**
@@ -256,6 +318,16 @@ export interface DiagnosisReassessmentResponse {
   safetyWarnings: string[];
   /** Assessment constraints, unverified areas, or remaining uncertainties */
   limitations: string[];
+  /** Optional updated circuit theory or block diagram insight */
+  circuitUnderstanding?: CircuitTheoryUnderstanding;
+  /** Optional analysis depth used for this assessment */
+  analysisDepth?: AnalysisDepth;
   /** Optional non-sensitive execution and token usage metadata */
   metadata?: ModelCompletionMetadata;
+  /** Execution provenance: 'live_provider' | 'offline_fixture' */
+  provenance?: 'live_provider' | 'offline_fixture';
+  /** Whether this assessment originated from deterministic offline mock replay */
+  isOfflineMock?: boolean;
+  /** Explicit execution mode ('live' | 'mock_demo') */
+  executionMode?: 'live' | 'mock_demo';
 }

@@ -238,28 +238,37 @@ CircuitLens supports configurable model providers defined in `server/src/metaCli
 
 ## 8. Deterministic Demonstration Mode (Hackathon Demo)
 
-CircuitLens includes a deterministic offline demonstration environment that replays realistic diagnostic scenarios without making live model requests or spending API credits.
+CircuitLens includes an isolated deterministic offline demonstration environment that replays realistic diagnostic scenarios without making live model requests or spending API credits.
 
 ### Running the Demo:
 
-1. **Start the Demo Mock Server:**
+1. **Option A: One-Command Full Demo (Recommended):**
    ```bash
-   node server/demo/demo_mock_server.mjs
+   npm run demo
    ```
-   The mock server starts on `http://localhost:4000` with pre-configured fixtures for the Arduino Uno SMD overcurrent scenario.
+   This concurrently launches:
+   - The offline mock server on port `4001`
+   - The Vite frontend client with demo proxy routing to port `4001` (`npm run dev:demo`)
 
-2. **Start the Frontend with Mock Mode:**
+2. **Option B: Step-by-Step:**
    ```bash
-   npm --prefix client run dev
+   # Terminal 1: Launch the demo mock server (port 4001)
+   node server/demo/demo_mock_server.mjs
+
+   # Terminal 2: Launch the frontend in demo mode
+   npm --prefix client run dev:demo
    ```
-   Open your browser to:
-   ```
-   http://localhost:5173/?mock=true
-   ```
+   Open your browser to `http://localhost:5173`.
+
+### Live Development vs. Offline Demo Isolation:
+| Workflow | Backend Port | Target Server | UI Health Badge | Results Provenance |
+|---|---|---|---|---|
+| `npm run dev` | `4000` | Real Express Backend (`server/src/index.ts`) | `LIVE BACKEND` (Cyan) | `🟢 Live Vision Model` |
+| `npm run demo` | `4001` | Offline Mock Server (`server/demo/demo_mock_server.mjs`) | `OFFLINE DEMO` (Amber) | `⚠️ Deterministic Offline Replay` |
 
 3. **Demonstration Flow:**
    - **Step 1 — Intake:** Upload an image or use the pre-staged Arduino Uno case. Click *Run AI Diagnostic Analysis*.
-   - **Step 2 — Initial Assessment:** Review optical findings, initial candidate hypotheses, and recommended cold resistance checks.
+   - **Step 2 — Initial Assessment:** Review optical findings, initial candidate hypotheses, and recommended cold resistance checks with explicit provenance indicators.
    - **Step 3 — Log Evidence:** Log a $2.1\ \Omega$ cold rail reading on the 5V bus.
    - **Step 4 — AI Reassessment:** Click *Reassess with AI* to observe hypothesis evolution from initial candidate to `supported`, accompanied by populated board parallel path warnings.
    - **Step 5 — Assistant Discussion:** Open the *Case Assistant* drawer to ask: *"Interpret the latest measurement cautiously"* and observe populated board reasoning.
@@ -281,7 +290,7 @@ CircuitLens includes a deterministic offline demonstration environment that repl
 
 ## 10. Automated Testing & Verification
 
-CircuitLens includes **431 automated tests** across 33 test suites that execute completely offline with zero external network requests and zero model credit consumption:
+CircuitLens includes comprehensive client and server automated test suites that execute completely offline with zero external network requests and zero model credit consumption:
 
 ```bash
 # Run all client and server test suites
@@ -290,28 +299,29 @@ npm test
 
 ### Verified Test Summary:
 
-| Suite | Tests | Framework | Status |
-| :--- | :---: | :--- | :---: |
-| **Client Test Suite** | **152** | Node `--experimental-strip-types` (26 suites) | **PASS** |
-| - *Client Cancellation & Abort* | 3 | Node assert | PASS |
-| - *Reassessment Boundaries* | 4 | Node assert | PASS |
-| - *Evidence Validation & Limits* | 7 | Node assert | PASS |
-| - *Image Optimization & Scaler* | 11 | Node assert | PASS |
-| - *Reassessment UI Matching* | 10 | Node assert | PASS |
-| - *Evolution Matrix & Timeline* | 16 | Node assert | PASS |
-| - *Report Builder & Schema v1.1.0* | 18 | Node assert | PASS |
-| - *Workspace & IndexedDB Store* | 13 | Node assert | PASS |
-| - *Persistence Concurrency & Lifecycle* | 9 | Node assert | PASS |
-| - *Contextual Assistant & Freshness* | 15 | Node assert | PASS |
-| **Server Test Suite** | **279** | `tsx` / Node ESM (7 suites) | **PASS** |
-| - *Provider Config & Credential Isolation* | 47 | Node assert | PASS |
-| - *Diagnosis Intake & Signature Validation* | 45 | Node assert | PASS |
-| - *Diagnosis Endpoint Integration* | 23 | Ephemeral HTTP server | PASS |
-| - *Reassessment Request & Citation Validation* | 54 | Node assert | PASS |
-| - *Reassessment Endpoint Integration* | 28 | Ephemeral HTTP server | PASS |
-| - *Adversarial Integrity & Safety Scenarios* | 62 | Node assert | PASS |
-| - *Assistant Deep Validation & Prompt Safety* | 20 | Ephemeral HTTP server | PASS |
-| **Total Automated Tests** | **431** | **All suites passed, 0 failures** | **PASS** |
+| Suite | Individual Test Cases | Assertions Verified | Test Runner / Framework | Status |
+| :--- | :---: | :---: | :--- | :---: |
+| **Client Test Suite** | **155** | 400+ | Node `--experimental-strip-types` (27 suites) | **PASS** |
+| - *Client Cancellation & Abort* | 3 | 12 | Node assert | PASS |
+| - *Reassessment Boundaries* | 4 | 14 | Node assert | PASS |
+| - *Evidence Validation & Limits* | 7 | 25 | Node assert | PASS |
+| - *Image Optimization & Scaler* | 11 | 35 | Node assert | PASS |
+| - *Reassessment UI Matching* | 10 | 28 | Node assert | PASS |
+| - *Evolution Matrix & Timeline* | 16 | 45 | Node assert | PASS |
+| - *Report Builder & Schema v1.1.0* | 18 | 50 | Node assert | PASS |
+| - *Workspace & IndexedDB Store* | 13 | 42 | Node assert | PASS |
+| - *Persistence Concurrency & Lifecycle* | 9 | 30 | Node assert | PASS |
+| - *Contextual Assistant & Freshness* | 15 | 45 | Node assert | PASS |
+| - *P0-2 Mock/Live Isolation & Provenance* | 3 | 12 | Node assert | PASS |
+| **Server Test Suite** | **95** | **508** | `tsx` / Node ESM (7 suites) | **PASS** |
+| - *Provider Config & Credential Isolation* | 10 sections | 258 | Node assert | PASS |
+| - *Diagnosis Intake & Signature Validation* | 14 cases | 37 | Node assert | PASS |
+| - *Diagnosis Endpoint Integration* | 10 tests | 30 | Ephemeral HTTP server | PASS |
+| - *Reassessment Request & Citation Validation* | 15 cases | 54 | Node assert | PASS |
+| - *Reassessment Endpoint Integration* | 15 tests | 45 | Ephemeral HTTP server | PASS |
+| - *Adversarial Integrity & Safety Scenarios* | 9 scenarios | 62 | Node assert | PASS |
+| - *Assistant Deep Validation & Prompt Safety* | 22 tests | 22 | Ephemeral HTTP server | PASS |
+| **Total Automated Tests** | **250 Cases** | **900+ Assertions** | **All suites passed, 0 failures** | **PASS** |
 
 ### Project Status:
 CircuitLens is a hackathon prototype developed for the Meta Global AI Developer Hackathon. A formal open-source license has not yet been attached to this repository. All rights are reserved by the original authors pending submission and release review.

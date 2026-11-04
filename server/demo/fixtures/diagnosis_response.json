@@ -111,6 +111,166 @@
     "Use current-limited supply only; unregulated 9V DC jack can source high current into short",
     "Observe ESD precautions for ATmega328P/16U2 CMOS devices"
   ],
+  "analysisDepth": "standard",
+  "circuitUnderstanding": {
+    "operatingPrinciple": "The Arduino Uno SMD employs a dual-source power topology. Power enters either through the 5V USB-B port (protected by resettable PTC polyfuse F1) or the 7–12V DC barrel jack (reverse-polarity protected by Schottky diode D1 and stepped down to 5.0V by linear regulator NCP1117ST50T3G). A comparator circuit automatically switches supply to DC when external Vin is present. The stabilized 5V bus subsequently feeds the ATmega328P microcontroller, the ATmega16U2 USB interface, and a secondary LP2985-33 low-dropout linear regulator providing the 3.3V auxiliary net.",
+    "expectedBehavior": "Nominal power rails: 5V rail should measure 4.85V–5.15V DC with <50mV ripple under load. The 3.3V rail should measure 3.25V–3.35V DC. Unpowered cold resistance from 5V to GND on a healthy board is typically >1.2 kΩ (governed by parallel decoupling capacitors and semiconductor junctions). Quiescent unpowered cold resistance from 3.3V to GND is typically >4.0 kΩ.",
+    "failureMechanismTheory": "A measured voltage collapse to 0.4V on 5V and 0.1V on 3.3V across both USB and DC power inputs strongly indicates a low-impedance branch overload pulling the power sources into thermal current-limit or foldback shutdown. On USB power, current exceeding 500mA trips polyfuse F1, resulting in a resistive voltage drop leaving ~0.4V at the board headers. On DC power, excessive load current forces the NCP1117 internal thermal protection loop to clamp output current, collapsing Vout. The simultaneous drop of the 3.3V rail is a secondary consequence because the LP2985-33 regulator is fed directly from the collapsed 5V bus.",
+    "relevantComponents": [
+      {
+        "designator": "F1",
+        "function": "500mA PTC resettable polyfuse protecting the USB host root port from overcurrent",
+        "status": "confirmed"
+      },
+      {
+        "designator": "D1",
+        "function": "M7 / 1N4007 reverse-polarity protection series diode on the DC barrel input",
+        "status": "confirmed"
+      },
+      {
+        "designator": "U1 (NCP1117ST50)",
+        "function": "5.0V 1A positive LDO linear regulator in SOT-223 package with thermal shutdown",
+        "status": "confirmed"
+      },
+      {
+        "designator": "U2 (LP2985-33)",
+        "function": "3.3V 150mA ultra-low-dropout regulator generating secondary 3.3V bus from 5V rail",
+        "status": "inferred"
+      },
+      {
+        "designator": "C1 / C2",
+        "function": "47uF / 25V aluminum electrolytic filter capacitors for input and output voltage stabilization",
+        "status": "confirmed"
+      },
+      {
+        "designator": "U3 (ATmega328P)",
+        "function": "Primary 8-bit AVR microcontroller load operating on the 5V VCC net",
+        "status": "confirmed"
+      },
+      {
+        "designator": "U4 (ATmega16U2)",
+        "function": "Dedicated USB-to-serial converter interface IC powered by 5V USB/regulator rail",
+        "status": "confirmed"
+      }
+    ],
+    "functionalBlocks": [
+      {
+        "id": "blk_pwr_in",
+        "label": "Dual Power Input",
+        "category": "power_input",
+        "status": "confirmed",
+        "description": "5V USB-B receptacle & 7-12V 2.1mm DC barrel connector",
+        "components": ["USB-B", "DC Jack"]
+      },
+      {
+        "id": "blk_prot",
+        "label": "Input Protection & Switching",
+        "category": "protection",
+        "status": "confirmed",
+        "description": "F1 500mA polyfuse, D1 reverse diode, and auto-voltage selector comparator",
+        "components": ["F1", "D1", "T1 (MOSFET)"]
+      },
+      {
+        "id": "blk_reg_5v",
+        "label": "5.0V Linear Regulation",
+        "category": "regulation",
+        "status": "confirmed",
+        "description": "NCP1117ST50 LDO dropping 7-12V Vin to 5.0V rail with C1/C2 bulk bypass",
+        "components": ["U1 (NCP1117)", "C1", "C2"]
+      },
+      {
+        "id": "blk_reg_3v3",
+        "label": "3.3V LDO Regulation",
+        "category": "regulation",
+        "status": "inferred",
+        "description": "LP2985-33 deriving auxiliary 3.3V rail from primary 5V net",
+        "components": ["U2 (LP2985-33)"]
+      },
+      {
+        "id": "blk_control",
+        "label": "Main Controller & Logic",
+        "category": "control",
+        "status": "confirmed",
+        "description": "ATmega328P 16MHz MCU with reset supervisory circuit and decoupling caps",
+        "components": ["ATmega328P", "16MHz Crystal", "Reset Switch"]
+      },
+      {
+        "id": "blk_comm",
+        "label": "USB Communication Subsystem",
+        "category": "signal_processing",
+        "status": "confirmed",
+        "description": "ATmega16U2 USB interface translating D+/D- differential to UART TX/RX",
+        "components": ["ATmega16U2", "Varistors", "Crystal"]
+      },
+      {
+        "id": "blk_headers",
+        "label": "I/O Expansion Headers",
+        "category": "output_load",
+        "status": "confirmed",
+        "description": "Standard female headers exposing 5V, 3.3V, GND, and GPIO pins to external shields",
+        "components": ["Power Header", "Digital Pins", "Analog Pins"]
+      }
+    ],
+    "blockConnections": [
+      {
+        "from": "blk_pwr_in",
+        "to": "blk_prot",
+        "signalType": "power",
+        "status": "confirmed",
+        "description": "Raw USB VBUS and DC barrel input"
+      },
+      {
+        "from": "blk_prot",
+        "to": "blk_reg_5v",
+        "signalType": "power",
+        "status": "confirmed",
+        "description": "Protected Vin routed to NCP1117 input pin"
+      },
+      {
+        "from": "blk_reg_5v",
+        "to": "blk_reg_3v3",
+        "signalType": "power",
+        "status": "inferred",
+        "description": "5V main bus feeding LP2985-33 input"
+      },
+      {
+        "from": "blk_reg_5v",
+        "to": "blk_control",
+        "signalType": "power",
+        "status": "confirmed",
+        "description": "5V VCC power net feeding ATmega328P"
+      },
+      {
+        "from": "blk_reg_5v",
+        "to": "blk_comm",
+        "signalType": "power",
+        "status": "confirmed",
+        "description": "5V VCC supplying ATmega16U2"
+      },
+      {
+        "from": "blk_reg_5v",
+        "to": "blk_headers",
+        "signalType": "power",
+        "status": "confirmed",
+        "description": "5V rail distributed to female header socket"
+      },
+      {
+        "from": "blk_reg_3v3",
+        "to": "blk_headers",
+        "signalType": "power",
+        "status": "confirmed",
+        "description": "3.3V auxiliary rail exposed on power header pin"
+      },
+      {
+        "from": "blk_comm",
+        "to": "blk_control",
+        "signalType": "data",
+        "status": "confirmed",
+        "description": "Serial UART TX/RX with DTR auto-reset coupling"
+      }
+    ],
+    "diagramLimitations": "Functional block diagram shows logical circuit relationships derived from Arduino Uno SMD PCB topography. In-circuit track continuity and internal silicon state cannot be confirmed without point-to-point DMM testing."
+  },
   "metadata": {
     "promptTokens": 1634,
     "completionTokens": 3064,

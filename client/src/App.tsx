@@ -3,6 +3,7 @@ import './App.css';
 import { translations, isRtl, type SupportedLanguage } from './i18n';
 import { IntakeSection } from './components/IntakeSection';
 import { InvestigationDashboard } from './components/InvestigationDashboard';
+import { WelcomeScreen } from './components/WelcomeScreen';
 import type { ActiveInvestigationInfo } from './types/intake';
 import type {
   InvestigationRecord,
@@ -26,9 +27,13 @@ import {
 interface HealthResponse {
   status: string;
   service: string;
+  mode?: 'live' | 'mock_demo';
+  provider?: string | null;
   apiKeyConfigured?: boolean;
-  targetModel?: string;
-  metaBaseUrl?: string;
+  targetModel?: string | null;
+  baseUrl?: string | null;
+  metaBaseUrl?: string | null;
+  inferenceVerified?: boolean;
   timestamp: string;
 }
 
@@ -42,7 +47,7 @@ export function App() {
   const [activeInvestigation, setActiveInvestigation] = useState<ActiveInvestigationInfo | null>(null);
 
   // Stage 6C-2C: Local-First Workspace & Persistence State
-  const [currentView, setCurrentView] = useState<'workspace' | 'dashboard'>('workspace');
+  const [currentView, setCurrentView] = useState<'welcome' | 'workspace' | 'dashboard'>('welcome');
   const [activeRecord, setActiveRecord] = useState<InvestigationRecord | null>(null);
   const [summaries, setSummaries] = useState<InvestigationSummary[]>([]);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error' | 'idle'>('idle');
@@ -149,17 +154,23 @@ export function App() {
           const rec = await getInvestigation(lastId);
           if (rec && !ignore) {
             setActiveRecord(rec);
-            setCurrentView('workspace');
+            // If the restored record already has an image or diagnosis in progress, keep workspace open;
+            // Otherwise, show the welcoming entry screen.
+            if (rec.imageBlob || rec.diagnosis || rec.formData.expectedBehavior) {
+              setCurrentView('workspace');
+            } else {
+              setCurrentView('welcome');
+            }
             return;
           }
         }
 
-        // If no last active ID, create initial blank record
+        // If no last active ID, create initial blank record and show welcome screen
         const blank = createNewInvestigationRecord();
         const saved = await saveInvestigation(blank);
         if (!ignore) {
           setActiveRecord(saved);
-          setCurrentView('workspace');
+          setCurrentView('welcome');
           void refreshSummaries();
         }
       } catch (err) {
@@ -222,6 +233,47 @@ export function App() {
       await refreshSummaries();
     } catch (err) {
       console.error('Failed to create new investigation:', err);
+    }
+  }, [activeRecord, refreshSummaries]);
+
+  // Primary action from Welcome Screen
+  const handleStartFromWelcome = useCallback(async () => {
+    if (activeRecord && !activeRecord.imageBlob && !activeRecord.diagnosis) {
+      setCurrentView('workspace');
+      return;
+    }
+    await handleNewInvestigation();
+  }, [activeRecord, handleNewInvestigation]);
+
+  // Launch interactive demo from Welcome Screen (Arduino Uno SMD benchmark)
+  const handleExploreDemo = useCallback(async () => {
+    if (activeRecord && debouncedSaverRef.current.hasPending(activeRecord.id)) {
+      try {
+        await debouncedSaverRef.current.flush(activeRecord.id);
+      } catch (err) {
+        console.error('Failed to flush active investigation before launching demo:', err);
+      }
+    }
+
+    const demoRecord = createNewInvestigationRecord('Arduino Uno SMD Edition');
+    demoRecord.formData = {
+      boardName: 'Arduino Uno SMD Edition',
+      expectedBehavior: 'Powers from 5V USB-B or 9V DC barrel jack; 5V and 3.3V rails active with ON LED illuminated.',
+      observedBehavior: 'Dead board; 5V rail collapses to 0.4V on both inputs with excessive current draw; ON LED dark.',
+      relevantComponents: 'U1 (NCP1117ST50T3G), F1 polyfuse, C1/C2 (47uF caps)',
+      additionalNotes: 'Board disconnected immediately to avoid thermal runaway. No visible burns on top side.',
+    };
+    demoRecord.title = 'Arduino Uno SMD Edition';
+
+    try {
+      const saved = await saveInvestigation(demoRecord);
+      setActiveRecord(saved);
+      setLastActiveId(saved.id);
+      setCurrentView('workspace');
+      setSaveStatus('saved');
+      await refreshSummaries();
+    } catch (err) {
+      console.error('Failed to launch demo investigation:', err);
     }
   }, [activeRecord, refreshSummaries]);
 
@@ -358,13 +410,156 @@ export function App() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
+  const isMockDemo = healthData?.mode === 'mock_demo';
+
+  const renderHealthIndicator = (isLandingPill = false) => (
+    <div className="compact-health-wrapper">
+      <button
+        type="button"
+        className={`compact-health-badge ${isLandingPill ? 'status-pill' : ''} ${
+          healthStatus === 'error'
+            ? 'err'
+            : healthStatus === 'checking'
+            ? 'checking'
+            : isMockDemo
+            ? 'offline-demo'
+            : 'live-backend'
+        }`}
+        onClick={() => setIsHealthDrawerOpen(!isHealthDrawerOpen)}
+        aria-expanded={isHealthDrawerOpen}
+        aria-haspopup="dialog"
+        aria-label={`${t.systemStatusTitle}: ${
+          healthStatus === 'ok'
+            ? isMockDemo
+              ? (t.modeOfflineDemo || 'Offline Demo')
+              : (t.modeLiveAi || 'Live AI')
+            : healthStatus === 'checking'
+            ? t.statusChecking
+            : (t.statusError || 'Offline')
+        }`}
+      >
+        <span className={`status-dot ${healthStatus === 'checking' ? 'pulse' : ''}`} />
+        <span className="compact-health-text">
+          {healthStatus === 'ok'
+            ? isMockDemo
+              ? (t.modeOfflineDemo || 'Offline Demo')
+              : (t.modeLiveAi || 'Live AI')
+            : healthStatus === 'checking'
+            ? t.statusChecking
+            : (t.statusError || 'Offline')}
+        </span>
+        <span className={`telemetry-toggle-chevron ${isHealthDrawerOpen ? 'open' : ''}`} aria-hidden="true">
+          ▾
+        </span>
+      </button>
+
+      {/* Accessible Health Popover */}
+      {isHealthDrawerOpen && (
+        <div
+          className="active-health-popover"
+          role="dialog"
+          aria-label={t.healthPopoverTitle}
+        >
+          <div className="health-popover-header">
+            <h4>{t.systemStatusTitle}</h4>
+            <button
+              type="button"
+              className="popover-close-btn"
+              onClick={() => setIsHealthDrawerOpen(false)}
+              aria-label={t.healthPopoverClose}
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="health-popover-grid">
+            <div className="health-popover-cell">
+              <span className="telemetry-label">{t.serviceLabel}</span>
+              <span className="telemetry-value" style={{ maxWidth: '170px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={healthData?.service || 'CircuitLens'}>
+                {healthData?.service || 'CircuitLens Service'}
+              </span>
+            </div>
+            <div className="health-popover-cell">
+              <span className="telemetry-label">Mode</span>
+              <span className="telemetry-value highlight" style={{ color: isMockDemo ? '#f59e0b' : '#10b981', fontWeight: 600 }}>
+                {isMockDemo ? 'OFFLINE DEMO' : 'LIVE BACKEND'}
+              </span>
+            </div>
+            <div className="health-popover-cell">
+              <span className="telemetry-label">Provider</span>
+              <span className="telemetry-value">
+                {isMockDemo ? 'None (Mock Fixture)' : (healthData?.provider || 'None')}
+              </span>
+            </div>
+            <div className="health-popover-cell">
+              <span className="telemetry-label">Target Model</span>
+              <span className="telemetry-value" style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={isMockDemo ? 'Canned Fixtures' : (healthData?.targetModel || 'None')}>
+                {isMockDemo ? 'Canned Fixtures' : (healthData?.targetModel || 'None')}
+              </span>
+            </div>
+            <div className="health-popover-cell">
+              <span className="telemetry-label">Status</span>
+              <span className="telemetry-value highlight">
+                {healthStatus === 'ok' ? (isMockDemo ? 'Ready (Mock Port 4001)' : t.statusConnected) : healthStatus === 'checking' ? t.statusChecking : t.statusError}
+              </span>
+            </div>
+            {latency !== null && (
+              <div className="health-popover-cell">
+                <span className="telemetry-label">Ping Latency</span>
+                <span className="telemetry-value">{latency} ms</span>
+              </div>
+            )}
+          </div>
+
+          <div className="health-popover-notice" style={{ marginTop: '0.65rem', padding: '0.45rem 0.6rem', background: isMockDemo ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.08)', border: `1px solid ${isMockDemo ? 'rgba(245, 158, 11, 0.25)' : 'rgba(16, 185, 129, 0.2)'}`, borderRadius: '4px', fontSize: '0.725rem', color: isMockDemo ? '#fbbf24' : '#a7f3d0', lineHeight: 1.35 }}>
+            {isMockDemo
+              ? 'Deterministic Mock Backend (Port 4001). Replays canned fixtures. Does not perform visual circuit analysis.'
+              : 'Configured API key present. Live inference verified on first successful analysis.'}
+          </div>
+
+          <div className="health-popover-footer">
+            <button
+              type="button"
+              className="action-btn retry-btn popover-retry-btn"
+              onClick={probeHealth}
+              disabled={healthStatus === 'checking'}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+              </svg>
+              <span>{t.retryButton}</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="app-container">
+      {/* Persistent Banner for Offline Demo Mock Server */}
+      {isMockDemo && (
+        <aside className="demo-mode-alert-banner" role="status" aria-label="Offline demo indicator">
+          <div className="demo-mode-alert-content">
+            <span className="demo-mode-badge">OFFLINE DEMO MODE (PORT 4001)</span>
+            <span>
+              Connected to local mock backend replaying static benchmark fixtures. Circuit image analysis is simulated.
+              To perform live vision inference, launch the live backend on port 4000.
+            </span>
+          </div>
+        </aside>
+      )}
+
       {activeInvestigation ? (
         /* Compact Active-Investigation Header */
         <header className="active-investigation-top-bar" role="banner">
           <div className="active-investigation-left">
-            <div className="brand-section-compact">
+            <button
+              type="button"
+              className="brand-section-compact brand-link-btn"
+              onClick={() => setCurrentView('welcome')}
+              title={t.headerHome}
+            >
               <svg
                 className="brand-logo-icon-compact"
                 viewBox="0 0 24 24"
@@ -380,25 +575,27 @@ export function App() {
                 <path d="M9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4" />
               </svg>
               <span className="brand-title-compact">{t.brandName}</span>
-            </div>
-
-            <span className="compact-header-divider" aria-hidden="true">•</span>
+            </button>
 
             <div className="investigation-meta-group">
-              <span className="investigation-board-name" title={activeInvestigation.boardName || t.stagedNotSpecified}>
-                {activeInvestigation.boardName || t.stagedNotSpecified}
+              <span
+                className="investigation-board-name"
+                title={
+                  activeInvestigation.boardName?.trim() ||
+                  (activeRecord?.title && activeRecord.title !== 'Untitled Investigation' ? activeRecord.title : null) ||
+                  t.newInvestigationFallback
+                }
+              >
+                {activeInvestigation.boardName?.trim() ||
+                  (activeRecord?.title && activeRecord.title !== 'Untitled Investigation' ? activeRecord.title : null) ||
+                  t.newInvestigationFallback}
               </span>
 
-              <span className="investigation-round-pill">
-                {activeInvestigation.reassessmentCount === 0
-                  ? t.initialDiagnosisBadge
-                  : `${t.investigationRound} ${activeInvestigation.reassessmentCount}`}
-              </span>
-
+              {/* Consolidated Diagnosis Status Pill */}
               <span className={`investigation-status-pill ${activeInvestigation.reassessmentCount > 0 ? 'reassessed' : 'active'}`}>
                 {activeInvestigation.reassessmentCount === 0
                   ? t.statusActiveAssessment
-                  : t.statusReassessed}
+                  : `${t.statusReassessed} (R${activeInvestigation.reassessmentCount})`}
               </span>
             </div>
           </div>
@@ -431,81 +628,12 @@ export function App() {
                 <rect x="14" y="14" width="7" height="7" />
                 <rect x="3" y="14" width="7" height="7" />
               </svg>
-              <span>{t.backToDashboardBtn}</span>
+              <span>{t.headerAllCases}</span>
               {summaries.length > 0 && <span className="dashboard-count-badge">{summaries.length}</span>}
             </button>
 
-            {/* Accessible Compact Health Indicator (Cleaned per Section 8) */}
-            <div className="compact-health-wrapper">
-              <button
-                type="button"
-                className={`compact-health-badge ${healthStatus}`}
-                onClick={() => setIsHealthDrawerOpen(!isHealthDrawerOpen)}
-                aria-expanded={isHealthDrawerOpen}
-                aria-haspopup="dialog"
-                aria-label={`${t.systemStatusTitle}: ${healthStatus === 'ok' ? t.statusConnected : healthStatus === 'checking' ? t.statusChecking : t.statusError}`}
-              >
-                <span className={`status-dot ${healthStatus === 'checking' ? 'pulse' : ''}`} />
-                <span className="compact-health-text">
-                  {healthStatus === 'ok'
-                    ? (latency !== null ? `${latency} ms` : t.statusConnected)
-                    : healthStatus === 'checking'
-                    ? t.statusChecking
-                    : t.statusError}
-                </span>
-                <span className={`telemetry-toggle-chevron ${isHealthDrawerOpen ? 'open' : ''}`} aria-hidden="true">
-                  ▾
-                </span>
-              </button>
-
-              {/* Accessible Health Popover */}
-              {isHealthDrawerOpen && (
-                <div
-                  className="active-health-popover"
-                  role="dialog"
-                  aria-label={t.healthPopoverTitle}
-                >
-                  <div className="health-popover-header">
-                    <h4>{t.systemStatusTitle}</h4>
-                    <button
-                      type="button"
-                      className="popover-close-btn"
-                      onClick={() => setIsHealthDrawerOpen(false)}
-                      aria-label={t.healthPopoverClose}
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  <div className="health-popover-grid">
-                    <div className="health-popover-cell">
-                      <span className="telemetry-label">{t.serviceLabel}</span>
-                      <span className="telemetry-value">{healthData?.service || 'CircuitLens Diagnostic Service'}</span>
-                    </div>
-                    <div className="health-popover-cell">
-                      <span className="telemetry-label">{t.statusChecking}</span>
-                      <span className="telemetry-value highlight">
-                        {healthStatus === 'ok' ? t.statusConnected : healthStatus === 'checking' ? t.statusChecking : t.statusError}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="health-popover-footer">
-                    <button
-                      type="button"
-                      className="action-btn retry-btn popover-retry-btn"
-                      onClick={probeHealth}
-                      disabled={healthStatus === 'checking'}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-                      </svg>
-                      <span>{t.retryButton}</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Accessible Compact Health Indicator */}
+            {renderHealthIndicator(false)}
 
             {/* Language Select */}
             <label htmlFor="active-language-select" className="visually-hidden" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>
@@ -533,20 +661,6 @@ export function App() {
               {theme === 'dark' ? '☀️' : '🌙'}
             </button>
 
-            {/* Edit Symptoms Quick Action */}
-            <button
-              type="button"
-              className="action-btn secondary-btn compact-header-action-btn"
-              onClick={activeInvestigation.onEditSymptoms}
-              title={t.compactEditSymptoms}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-              <span>{t.compactEditSymptoms}</span>
-            </button>
-
             {/* New Investigation Action */}
             <button
               type="button"
@@ -555,19 +669,24 @@ export function App() {
               title={t.compactNewInvestigation}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-                <path d="M21 3v5h-5" />
-                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-                <path d="M8 16H3v5" />
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
-              <span>{t.compactNewInvestigation}</span>
+              <span>{t.headerNewCase}</span>
             </button>
           </div>
         </header>
       ) : (
-        /* Workspace Top Bar */
+        /* Workspace / Dashboard / Welcome Top Bar */
         <header className="top-bar">
-          <div className="brand-section">
+          <div
+            className="brand-section brand-link-btn"
+            onClick={() => setCurrentView('welcome')}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setCurrentView('welcome'); }}
+            title={t.headerHome}
+          >
             <svg
               className="brand-logo-icon"
               viewBox="0 0 24 24"
@@ -584,7 +703,6 @@ export function App() {
             </svg>
             <div className="brand-title">
               <span>{t.brandName}</span>
-              <span className="brand-badge">{t.stageBadge}</span>
             </div>
           </div>
 
@@ -603,108 +721,50 @@ export function App() {
               </span>
             )}
 
-            {/* Dashboard / Workspace Navigation Button */}
-            {currentView === 'workspace' ? (
+            {/* Navigation Switchers */}
+            <div className="header-nav-pills">
               <button
                 type="button"
-                className="action-btn secondary-btn dashboard-nav-btn"
-                onClick={handleNavigateToDashboard}
-                title={t.allInvestigationsBtn}
+                className={`header-nav-pill ${currentView === 'welcome' ? 'active' : ''}`}
+                onClick={() => setCurrentView('welcome')}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <rect x="3" y="3" width="7" height="7" />
-                  <rect x="14" y="3" width="7" height="7" />
-                  <rect x="14" y="14" width="7" height="7" />
-                  <rect x="3" y="14" width="7" height="7" />
-                </svg>
-                <span>{t.backToDashboardBtn}</span>
+                {t.headerHome}
+              </button>
+
+              <button
+                type="button"
+                className={`header-nav-pill ${currentView === 'workspace' ? 'active' : ''}`}
+                onClick={() => setCurrentView('workspace')}
+              >
+                {t.headerWorkbench}
+              </button>
+
+              <button
+                type="button"
+                className={`header-nav-pill ${currentView === 'dashboard' ? 'active' : ''}`}
+                onClick={handleNavigateToDashboard}
+              >
+                <span>{t.headerAllCases}</span>
                 {summaries.length > 0 && <span className="dashboard-count-badge">{summaries.length}</span>}
               </button>
-            ) : (
-              <button
-                type="button"
-                className="action-btn secondary-btn dashboard-nav-btn"
-                onClick={() => setCurrentView('workspace')}
-                title={t.openInvestigationBtn}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-                <span>{t.openInvestigationBtn}</span>
-              </button>
-            )}
-
-            {/* Compact Diagnostic Connectivity Pill (Cleaned per Section 8) */}
-            <div className="compact-health-wrapper">
-              <button
-                type="button"
-                className={`compact-health-badge status-pill ${healthStatus}`}
-                onClick={() => setIsHealthDrawerOpen(!isHealthDrawerOpen)}
-                aria-expanded={isHealthDrawerOpen}
-                aria-haspopup="dialog"
-                aria-label={`${t.systemStatusTitle}: ${healthStatus === 'ok' ? t.statusConnected : healthStatus === 'checking' ? t.statusChecking : t.statusError}`}
-              >
-                <span className={`status-dot ${healthStatus === 'checking' ? 'pulse' : ''}`} />
-                <span className="compact-health-text">
-                  {healthStatus === 'ok'
-                    ? (latency !== null ? `${latency} ms` : t.statusConnected)
-                    : healthStatus === 'checking'
-                    ? t.statusChecking
-                    : t.statusError}
-                </span>
-                <span className={`telemetry-toggle-chevron ${isHealthDrawerOpen ? 'open' : ''}`} aria-hidden="true">
-                  ▾
-                </span>
-              </button>
-
-              {/* Accessible Health Popover */}
-              {isHealthDrawerOpen && (
-                <div
-                  className="active-health-popover"
-                  role="dialog"
-                  aria-label={t.healthPopoverTitle}
-                >
-                  <div className="health-popover-header">
-                    <h4>{t.systemStatusTitle}</h4>
-                    <button
-                      type="button"
-                      className="popover-close-btn"
-                      onClick={() => setIsHealthDrawerOpen(false)}
-                      aria-label={t.healthPopoverClose}
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  <div className="health-popover-grid">
-                    <div className="health-popover-cell">
-                      <span className="telemetry-label">{t.serviceLabel}</span>
-                      <span className="telemetry-value">{healthData?.service || 'CircuitLens Diagnostic Service'}</span>
-                    </div>
-                    <div className="health-popover-cell">
-                      <span className="telemetry-label">{t.statusChecking}</span>
-                      <span className="telemetry-value highlight">
-                        {healthStatus === 'ok' ? t.statusConnected : healthStatus === 'checking' ? t.statusChecking : t.statusError}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="health-popover-footer">
-                    <button
-                      type="button"
-                      className="action-btn retry-btn popover-retry-btn"
-                      onClick={probeHealth}
-                      disabled={healthStatus === 'checking'}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-                      </svg>
-                      <span>{t.retryButton}</span>
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
+
+            {/* New Investigation Quick Button */}
+            <button
+              type="button"
+              className="action-btn outline-btn new-inv-btn"
+              onClick={handleNewInvestigation}
+              title={t.compactNewInvestigation}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              <span>{t.headerNewCase}</span>
+            </button>
+
+            {/* Compact Connectivity Pill */}
+            {renderHealthIndicator(true)}
 
             <label htmlFor="language-select" className="visually-hidden" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>
               {t.languageSelect}
@@ -734,7 +794,18 @@ export function App() {
       )}
 
       <main className="main-content">
-        {currentView === 'dashboard' ? (
+        {currentView === 'welcome' ? (
+          <WelcomeScreen
+            t={t}
+            lang={lang}
+            summaries={summaries}
+            onStartInvestigation={handleStartFromWelcome}
+            onExploreDemo={handleExploreDemo}
+            onOpenInvestigation={handleOpenInvestigation}
+            onViewAllInvestigations={handleNavigateToDashboard}
+            isMockDemo={isMockDemo}
+          />
+        ) : currentView === 'dashboard' ? (
           <InvestigationDashboard
             t={t}
             lang={lang}
@@ -748,25 +819,15 @@ export function App() {
             onUpdateStatus={handleUpdateStatus}
           />
         ) : (
-          <>
-            {!activeInvestigation && (
-              <section className="hero-banner">
-                <div className="hero-tag">{t.heroTag}</div>
-                <h1 className="hero-title">{t.stageTitle}</h1>
-                <p className="hero-subtitle">{t.stageSubtitle}</p>
-              </section>
-            )}
-
-            {/* Vision & Schematic Intake Section */}
-            <IntakeSection
-              t={t}
-              lang={lang}
-              onActiveInvestigationChange={setActiveInvestigation}
-              activeInvestigationRecord={activeRecord}
-              onInvestigationUpdate={handleInvestigationUpdate}
-              onNewInvestigationRequest={handleNewInvestigation}
-            />
-          </>
+          /* Vision & Schematic Intake Section in Workspace */
+          <IntakeSection
+            t={t}
+            lang={lang}
+            onActiveInvestigationChange={setActiveInvestigation}
+            activeInvestigationRecord={activeRecord}
+            onInvestigationUpdate={handleInvestigationUpdate}
+            onNewInvestigationRequest={handleNewInvestigation}
+          />
         )}
       </main>
 

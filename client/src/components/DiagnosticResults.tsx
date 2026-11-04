@@ -31,6 +31,7 @@ import { EvidenceTimelineView } from './EvidenceTimelineView';
 import { DiagnosticReportView } from './DiagnosticReportView';
 import { DiagnosticTelemetryCard } from './DiagnosticTelemetryCard';
 import { InvestigationAssistantPanel } from './InvestigationAssistantPanel';
+import { CircuitUnderstandingView } from './CircuitUnderstandingView';
 import {
   buildHypothesisEvolutionMatrix,
   buildEvidenceTimeline,
@@ -56,7 +57,7 @@ interface DiagnosticResultsProps {
   investigationId?: string;
   initialEvidenceLog?: EvidenceRecord[];
   initialReassessments?: DiagnosisReassessmentResponse[];
-  initialActivePerspective?: 'overview' | 'matrix' | 'timeline' | 'report';
+  initialActivePerspective?: 'overview' | 'matrix' | 'timeline' | 'report' | 'theory';
   initialInspectorZoom?: number;
   initialInspectorPan?: { x: number; y: number };
   initialAssistantMessages?: AssistantMessage[];
@@ -64,7 +65,7 @@ interface DiagnosticResultsProps {
     evidenceLog?: EvidenceRecord[];
     reassessments?: DiagnosisReassessmentResponse[];
     reassessmentCycle?: number;
-    activePerspective?: 'overview' | 'matrix' | 'timeline' | 'report';
+    activePerspective?: 'overview' | 'matrix' | 'timeline' | 'report' | 'theory';
     inspectorZoom?: number;
     inspectorPan?: { x: number; y: number };
     assistantMessages?: AssistantMessage[];
@@ -89,7 +90,7 @@ export function DiagnosticResults({
   initialAssistantMessages,
   onInvestigationUpdate,
 }: DiagnosticResultsProps) {
-  const [activePerspective, setActivePerspective] = useState<'overview' | 'matrix' | 'timeline' | 'report'>(
+  const [activePerspective, setActivePerspective] = useState<'overview' | 'matrix' | 'timeline' | 'report' | 'theory'>(
     initialActivePerspective || 'overview'
   );
   const [selectedObservationText, setSelectedObservationText] = useState<string | null>(null);
@@ -123,12 +124,25 @@ export function DiagnosticResults({
   const [reassessments, setReassessments] = useState<DiagnosisReassessmentResponse[]>(() => initialReassessments || []);
   const [reassessmentCycle, setReassessmentCycle] = useState<number>(() => (initialReassessments ? initialReassessments.length : 0));
 
+  // Interactive hypothesis accordion state (leading hypothesis expanded by default)
+  const [expandedHypotheses, setExpandedHypotheses] = useState<Record<number, boolean>>({ 0: true });
+  const toggleHypothesis = (idx: number) => {
+    setExpandedHypotheses((prev) => ({ ...prev, [idx]: !prev[idx] }));
+  };
+
   // Stage 6C-3A: Synchronize assistant messages on case switch or reload
+  const prevInvIdRef = useRef(investigationId);
   useEffect(() => {
-    if (initialAssistantMessages) {
+    if (prevInvIdRef.current !== investigationId) {
+      prevInvIdRef.current = investigationId;
+      setAssistantMessages(initialAssistantMessages || []);
+      return;
+    }
+    // Only update if incoming messages has more items (never clobber active session)
+    if (initialAssistantMessages && initialAssistantMessages.length > assistantMessages.length) {
       setAssistantMessages(initialAssistantMessages);
     }
-  }, [initialAssistantMessages]);
+  }, [initialAssistantMessages, investigationId, assistantMessages.length]);
 
   // In-flight request controller to support clean cancellation
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -616,6 +630,25 @@ export function DiagnosticResults({
 
       <button
         type="button"
+        className={`subnav-tab-btn ${activePerspective === 'theory' ? 'active' : ''}`}
+        onClick={() => setActivePerspective('theory')}
+        aria-current={activePerspective === 'theory' ? 'page' : undefined}
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <polygon points="12 2 2 7 12 12 22 7 12 2" />
+          <polyline points="2 17 12 22 22 17" />
+          <polyline points="2 12 12 17 22 12" />
+        </svg>
+        <span>{t.subnavTheory || 'Theory & Architecture'}</span>
+        {diagnosis.circuitUnderstanding?.functionalBlocks && (
+          <span className="subnav-tab-badge">
+            {diagnosis.circuitUnderstanding.functionalBlocks.length}
+          </span>
+        )}
+      </button>
+
+      <button
+        type="button"
         className={`subnav-tab-btn ${activePerspective === 'report' ? 'active' : ''}`}
         onClick={() => setActivePerspective('report')}
         aria-current={activePerspective === 'report' ? 'page' : undefined}
@@ -677,9 +710,37 @@ export function DiagnosticResults({
             {t.resultsSectionTitle}
           </h2>
         </div>
-        <span className="stage-status-badge results-badge">{t.resultsBadge}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {diagnosis.provenance === 'live_provider' ? (
+            <span className="provenance-badge live-model" title="Generated by live model inference">
+              🟢 Live Vision Model ({diagnosis.metadata?.provider || 'Baseten'})
+            </span>
+          ) : diagnosis.provenance === 'offline_fixture' || diagnosis.isOfflineMock ? (
+            <span className="provenance-badge offline-mock" title="Generated from pre-packaged offline fixture">
+              ⚠️ Deterministic Offline Replay
+            </span>
+          ) : (
+            <span className="provenance-badge unverified" title="Legacy or unverified result provenance">
+              ⚪ UNVERIFIED RESULT
+            </span>
+          )}
+          <span className="stage-status-badge results-badge">{t.resultsBadge}</span>
+        </div>
       </div>
       <p className="intake-section-desc">{t.resultsSectionSubtitle}</p>
+
+      {/* Offline Demo Notice if response came from canned mock */}
+      {(diagnosis.isOfflineMock || diagnosis.provenance === 'offline_fixture') && (
+        <div className="provenance-alert-banner" role="status" aria-label="Mock fixture disclosure">
+          <div className="provenance-alert-header">
+            <span>⚠️</span>
+            <span>Pre-Packaged Offline Benchmark Fixture</span>
+          </div>
+          <p>
+            This diagnostic assessment was replayed from a static mock fixture (Arduino Uno SMD reference scenario). It was not produced by live optical analysis of your uploaded circuit photograph. Run the live backend on port 4000 to analyze actual hardware images.
+          </p>
+        </div>
+      )}
 
       {/* 1. Mandatory Critical Safety Warning Banner */}
       {diagnosis.safetyWarnings && diagnosis.safetyWarnings.length > 0 && (
@@ -880,9 +941,22 @@ export function DiagnosticResults({
       <div className="hypotheses-list">
         {diagnosis.hypotheses.map((hyp, idx) => {
           const latestRevised = findLatestRevisedHypothesis(hyp.title, latestReassessment);
+          const isExpanded = !!expandedHypotheses[idx];
           return (
-            <article key={`hyp-${idx}`} className="hypothesis-card">
-              <div className="hypothesis-card-header">
+            <article key={`hyp-${idx}`} className={`hypothesis-card interactive-hypothesis-card ${isExpanded ? 'is-expanded' : 'is-collapsed'}`}>
+              <div
+                className="hypothesis-card-header"
+                onClick={() => toggleHypothesis(idx)}
+                role="button"
+                tabIndex={0}
+                aria-expanded={isExpanded}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggleHypothesis(idx);
+                  }
+                }}
+              >
                 <div className="hypothesis-title-group">
                   <span className="hypothesis-rank" aria-hidden="true">
                     H{idx + 1}
@@ -904,7 +978,10 @@ export function DiagnosticResults({
                       className={`status-badge latest-status-badge ${getRevisedStatusBadgeClass(
                         latestRevised.status
                       )}`}
-                      onClick={() => handleScrollToHypothesisRevision(hyp.title)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleScrollToHypothesisRevision(hyp.title);
+                      }}
                       title={`${t.latestStatusLabel}: ${getRevisedStatusLabel(
                         latestRevised.status
                       )} (${t.reassessmentCycleBadge} #${reassessments.length})`}
@@ -922,50 +999,112 @@ export function DiagnosticResults({
                       </span>
                     </button>
                   )}
-                </div>
-              </div>
-
-              <div className="hypothesis-body">
-                <div className="hypothesis-field">
-                  <span className="meta-field-label">{t.hypothesisReasoningLabel}</span>
-                  <p className="hypothesis-text">{hyp.reasoning}</p>
-                </div>
-
-                {hyp.supportingEvidence && hyp.supportingEvidence.length > 0 && (
-                  <div className="hypothesis-field">
-                    <span className="meta-field-label">{t.hypothesisEvidenceLabel}</span>
-                    <ul className="hypothesis-evidence-list">
-                      {hyp.supportingEvidence.map((ev, eIdx) => (
-                        <li key={`ev-${eIdx}`} className="hypothesis-evidence-item">
-                          {ev}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                <div className="hypothesis-field verification-field">
-                  <span className="meta-field-label">{t.hypothesisVerificationLabel}</span>
-                  <div className="verification-box">
+                  <span className="hypothesis-chevron-icon" aria-hidden="true">
                     <svg
                       width="16"
                       height="16"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
-                      strokeWidth="2"
+                      strokeWidth="2.5"
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      className="verification-icon"
-                      aria-hidden="true"
+                      style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}
                     >
-                      <polyline points="9 11 12 14 22 4" />
-                      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                      <polyline points="6 9 12 15 18 9" />
                     </svg>
-                    <span>{hyp.suggestedVerification}</span>
-                  </div>
+                  </span>
                 </div>
               </div>
+
+              {!isExpanded && (
+                <div className="hypothesis-collapsed-preview" onClick={() => toggleHypothesis(idx)}>
+                  <p className="hypothesis-preview-snippet">{hyp.reasoning}</p>
+                  <span className="hypothesis-preview-action">Expand verification steps ↓</span>
+                </div>
+              )}
+
+              {isExpanded && (
+                <div className="hypothesis-body">
+                  <div className="hypothesis-field">
+                    <span className="meta-field-label">{t.hypothesisReasoningLabel}</span>
+                    <p className="hypothesis-text">{hyp.reasoning}</p>
+                  </div>
+
+                  {hyp.supportingEvidence && hyp.supportingEvidence.length > 0 && (
+                    <div className="hypothesis-field">
+                      <span className="meta-field-label">{t.hypothesisEvidenceLabel}</span>
+                      <ul className="hypothesis-evidence-list">
+                        {hyp.supportingEvidence.map((ev, eIdx) => (
+                          <li
+                            key={`ev-${eIdx}`}
+                            className="hypothesis-evidence-item clickable-evidence-item"
+                            onClick={() => setSelectedObservationText(ev)}
+                            title="Cross-reference on circuit image inspector"
+                          >
+                            <span className="evidence-bullet-icon" aria-hidden="true">🔍</span>
+                            <span>{ev}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="hypothesis-field verification-field">
+                    <span className="meta-field-label">{t.hypothesisVerificationLabel}</span>
+                    <div className="verification-box">
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="verification-icon"
+                        aria-hidden="true"
+                      >
+                        <polyline points="9 11 12 14 22 4" />
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                      </svg>
+                      <span>{hyp.suggestedVerification}</span>
+                    </div>
+                  </div>
+
+                  {/* Interactive Troubleshooting Action Dock */}
+                  <div className="hypothesis-actions-dock">
+                    <button
+                      type="button"
+                      className="action-btn secondary-btn hyp-test-check-btn"
+                      onClick={() => {
+                        const checkSection = document.getElementById('recommended-checks-section');
+                        if (checkSection) {
+                          checkSection.scrollIntoView({ behavior: 'smooth' });
+                          if (allRecommendations[idx]) {
+                            setSelectedRecommendationId(allRecommendations[idx].targetRecommendationId);
+                          }
+                        }
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                      </svg>
+                      <span>⚡ Perform Recommended Check</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="action-btn secondary-btn hyp-ask-assistant-btn"
+                      onClick={() => setIsAssistantOpen(true)}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      </svg>
+                      <span>💬 Consult Assistant on H{idx + 1}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </article>
           );
         })}
@@ -1451,6 +1590,51 @@ export function DiagnosticResults({
 
               {/* Direct Optical Observations directly below circuit image for cross-referencing */}
               {renderDirectOpticalObservations()}
+
+              {/* Limitations & Analytical Boundaries in Left Rail */}
+              {diagnosis.limitations && diagnosis.limitations.length > 0 && (
+                <section className="card-panel limitations-panel" aria-labelledby="limitations-heading">
+                  <div className="card-header">
+                    <div className="card-title-group">
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="section-icon"
+                        aria-hidden="true"
+                      >
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                      </svg>
+                      <h3 id="limitations-heading" className="card-title">
+                        {t.limitationsTitle}
+                      </h3>
+                    </div>
+                  </div>
+                  <p className="intake-section-desc">{t.limitationsSubtitle}</p>
+                  <ul className="limitations-list">
+                    {diagnosis.limitations.map((limitation, idx) => (
+                      <li key={`lim-${idx}`} className="limitation-item">
+                        {limitation}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              {/* Diagnostic Telemetry in Left Rail */}
+              {diagnosis.metadata && (
+                <DiagnosticTelemetryCard
+                  telemetry={diagnosis.metadata}
+                  title={t.initialTelemetryCardTitle || 'Initial Diagnosis AI Telemetry'}
+                  t={t}
+                />
+              )}
             </div>
 
             {/* Right Column: Diagnostic & Troubleshooting Workflow */}
@@ -1483,51 +1667,6 @@ export function DiagnosticResults({
 
           {/* Overview Secondary Flow (Beneath the Split Layout) */}
           <div className="workbench-secondary-flow">
-            {/* Limitations & Uncertainties */}
-            {diagnosis.limitations && diagnosis.limitations.length > 0 && (
-              <section className="card-panel limitations-panel" aria-labelledby="limitations-heading">
-                <div className="card-header">
-                  <div className="card-title-group">
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="section-icon"
-                      aria-hidden="true"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-                    </svg>
-                    <h3 id="limitations-heading" className="card-title">
-                      {t.limitationsTitle}
-                    </h3>
-                  </div>
-                </div>
-                <p className="intake-section-desc">{t.limitationsSubtitle}</p>
-                <ul className="limitations-list">
-                  {diagnosis.limitations.map((limitation, idx) => (
-                    <li key={`lim-${idx}`} className="limitation-item">
-                      {limitation}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-            {/* Diagnostic Telemetry (if available) */}
-            {diagnosis.metadata && (
-              <DiagnosticTelemetryCard
-                telemetry={diagnosis.metadata}
-                title={t.initialTelemetryCardTitle || 'Initial Diagnosis AI Telemetry'}
-                t={t}
-              />
-            )}
-
             {/* Disclaimer Notice */}
             <div className="results-disclaimer" role="note">
               <svg
@@ -1763,6 +1902,20 @@ export function DiagnosticResults({
           {/* Printable Document for window.print() and Save-as-PDF */}
           <DiagnosticReportView
             report={diagnosticReportPayload}
+            t={t}
+          />
+          {renderActionsFooter()}
+        </div>
+      )}
+
+      {/* Perspective 5: Circuit Theory & Understanding */}
+      {activePerspective === 'theory' && (
+        <div className="perspective-theory-container">
+          {renderResultsSummaryPanel()}
+          <CircuitUnderstandingView
+            boardName={formData?.boardName || t.stagedNotSpecified || 'PCB'}
+            understanding={diagnosis.circuitUnderstanding}
+            analysisDepth={diagnosis.analysisDepth}
             t={t}
           />
           {renderActionsFooter()}

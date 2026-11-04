@@ -6,7 +6,7 @@
  */
 
 import type { IntakeFormValues } from './intake.ts';
-import type { DiagnosisResponse, DiagnosisReassessmentResponse, EvidenceRecord } from './diagnosis.ts';
+import type { DiagnosisResponse, DiagnosisReassessmentResponse, EvidenceRecord, AnalysisDepth } from './diagnosis.ts';
 import type { AssistantMessage } from './assistant.ts';
 
 export type InvestigationStatus =
@@ -67,7 +67,10 @@ export interface InvestigationRecord {
   reassessmentCycle: number;
 
   /** Active diagnostic workbench perspective */
-  activePerspective: 'overview' | 'matrix' | 'timeline' | 'report';
+  activePerspective: 'overview' | 'matrix' | 'timeline' | 'report' | 'theory';
+
+  /** Selected or applied analysis depth scope ('basic' | 'standard' | 'advanced') */
+  analysisDepth?: AnalysisDepth;
 
   /** Preserved optical inspection zoom factor */
   inspectorZoom: number;

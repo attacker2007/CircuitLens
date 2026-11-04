@@ -52,7 +52,50 @@ export interface Translations {
   replaceImageBtn: string;
   removeImageBtn: string;
   formSectionTitle: string;
+  intakeGuidanceLabel: string;
+  intakeModeFault: string;
+  intakeModeFaultDesc: string;
+  intakeModeUncertain: string;
+  intakeModeUncertainDesc: string;
+  intakeModeCheck: string;
+  intakeModeCheckDesc: string;
+  intakeUncertainExpected: string;
+  intakeUncertainObserved: string;
+  intakeCheckExpected: string;
+  intakeCheckObserved: string;
+  quickSwitchToBasicBtn: string;
   boardNameLabel: string;
+
+  // Simplified Header & Navigation
+  headerHome: string;
+  headerWorkbench: string;
+  headerAllCases: string;
+  headerNewCase: string;
+  modeLiveAi: string;
+  modeOfflineDemo: string;
+  newInvestigationFallback: string;
+
+  // Welcome Screen
+  welcomeTagline: string;
+  welcomeSubtitle: string;
+  welcomeStartCardTitle: string;
+  welcomeStartCardDesc: string;
+  welcomeStartBtn: string;
+  welcomeDemoCardTitle: string;
+  welcomeDemoCardDesc: string;
+  welcomeDemoBtn: string;
+  welcomeRecentTitle: string;
+  welcomeRecentSubtitle: string;
+  welcomeRecentEmpty: string;
+  welcomeResumeBtn: string;
+  welcomeViewAllBtn: string;
+  welcomeHighlightsTitle: string;
+  welcomeFeature1Title: string;
+  welcomeFeature1Desc: string;
+  welcomeFeature2Title: string;
+  welcomeFeature2Desc: string;
+  welcomeFeature3Title: string;
+  welcomeFeature3Desc: string;
   boardNameOptional: string;
   boardNamePlaceholder: string;
   expectedBehaviorLabel: string;
@@ -351,6 +394,31 @@ export interface Translations {
   subnavMatrix: string;
   subnavTimeline: string;
   subnavReport: string;
+  subnavTheory: string;
+  dockNavTheory: string;
+  analysisDepthLabel: string;
+  depthBasic: string;
+  depthBasicDesc: string;
+  depthStandard: string;
+  depthStandardDesc: string;
+  depthAdvanced: string;
+  depthAdvancedDesc: string;
+  theorySectionTitle: string;
+  theorySectionSubtitle: string;
+  theoryOperatingPrinciples: string;
+  theoryExpectedBehavior: string;
+  theoryFailureMechanism: string;
+  theoryFunctionalBlockDiagram: string;
+  theoryConfirmed: string;
+  theoryInferred: string;
+  theoryUnknown: string;
+  theoryComponentRoles: string;
+  theoryDisclaimerNotice: string;
+  noTheoryAvailable: string;
+  assistantModeLive: string;
+  assistantModeOffline: string;
+  assistantModeLiveNotice: string;
+  assistantModeOfflineNotice: string;
 
   // Stage 6B-4B-3D: Ambiguous Hypothesis Decoupling & Localization
   ambiguousIdentityBadge: string;
@@ -533,7 +601,50 @@ export const translations: Record<SupportedLanguage, Translations> = {
     replaceImageBtn: 'Replace Photo',
     removeImageBtn: 'Remove Photo',
     formSectionTitle: 'Operational Symptom Profile',
+    intakeGuidanceLabel: 'Intake Guidance Mode',
+    intakeModeFault: 'Suspected Fault',
+    intakeModeFaultDesc: 'I observed an abnormal circuit symptom or defect',
+    intakeModeUncertain: 'Unsure / Don\'t Know',
+    intakeModeUncertainDesc: 'I don\'t know what is wrong — guide me with safe visual and unpowered checks',
+    intakeModeCheck: 'General Health Check',
+    intakeModeCheckDesc: 'Inspect if circuit components and layout appear normal',
+    intakeUncertainExpected: 'Nominal operational state or unknown baseline',
+    intakeUncertainObserved: 'I do not know what is wrong. Please inspect the board visually for obvious anomalies, identify key landmarks, and guide me on safe checks.',
+    intakeCheckExpected: 'Nominal circuit function and physical integrity',
+    intakeCheckObserved: 'General baseline inspection. The board has no known active faults; verify if components and layout appear normal.',
+    quickSwitchToBasicBtn: 'Switch to Basic Depth & Retry',
     boardNameLabel: 'Board Name / Identifier',
+
+    // Simplified Header & Navigation
+    headerHome: 'Welcome',
+    headerWorkbench: 'Workbench',
+    headerAllCases: 'Cases',
+    headerNewCase: '+ New',
+    modeLiveAi: 'Live AI',
+    modeOfflineDemo: 'Offline Demo',
+    newInvestigationFallback: 'New Investigation',
+
+    // Welcome Screen
+    welcomeTagline: 'AI Electronics Diagnostic Workbench',
+    welcomeSubtitle: 'Systematic troubleshooting for circuit boards and electronic hardware. Upload PCB photographs to isolate visual anomalies, evaluate testable fault hypotheses, and track findings as you record bench measurements.',
+    welcomeStartCardTitle: 'Start New Investigation',
+    welcomeStartCardDesc: 'Upload a PCB photograph or schematic to begin structured visual triage and defect analysis.',
+    welcomeStartBtn: 'Start Investigation →',
+    welcomeDemoCardTitle: 'Explore Interactive Demo',
+    welcomeDemoCardDesc: 'Try CircuitLens with a preloaded Arduino Uno SMD benchmark circuit (5V rail collapse, regulator overheating).',
+    welcomeDemoBtn: 'Launch Demo Case →',
+    welcomeRecentTitle: 'Recent Investigations',
+    welcomeRecentSubtitle: 'Resume your active troubleshooting cases saved locally in browser storage.',
+    welcomeRecentEmpty: 'No saved investigations yet. Start a new investigation or explore the demo to begin.',
+    welcomeResumeBtn: 'Resume Case',
+    welcomeViewAllBtn: 'View All Cases',
+    welcomeHighlightsTitle: 'Diagnostic Workflow Capabilities',
+    welcomeFeature1Title: 'Visual & Symptom Triage',
+    welcomeFeature1Desc: 'Multimodal optical inspection detects burned packages, cracked passives, solder bridges, and thermal stress.',
+    welcomeFeature2Title: 'Evidence-Driven Reasoning',
+    welcomeFeature2Desc: 'Hypotheses evolve dynamically as you record cold resistance, rail voltages, and diode test measurements.',
+    welcomeFeature3Title: 'Safe Guided Procedures',
+    welcomeFeature3Desc: 'Prioritizes non-destructive unpowered checks with explicit high-voltage, capacitor discharge, and ESD precautions.',
     boardNameOptional: '(Optional)',
     boardNamePlaceholder: 'e.g., ESP32 Motor Driver Rev 2, Buck Converter v1.4',
     expectedBehaviorLabel: 'Expected Nominal Operation',
@@ -590,7 +701,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
     rateLimitErrorNotice: 'Model API rate limit reached. Please wait a moment before trying again.',
     timeoutErrorNotice: 'Diagnostic request timed out. The model or network took too long to complete visual inference.',
     genericErrorNotice: 'An unexpected error occurred during diagnostic processing. Your entered symptoms and image have been preserved.',
-    outputLimitErrorNotice: 'The model reached its maximum output token limit before completing the diagnosis. Please provide more concise intake notes or contact support.',
+    outputLimitErrorNotice: 'The diagnostic analysis reached its response capacity while evaluating the board. Switch to "Basic" analysis depth for a rapid, compact triage, or use the Case Assistant for guided checks.',
     invalidOutputErrorNotice: 'The model produced an unparseable response. The raw output did not conform to standard JSON syntax.',
     schemaValidationErrorNotice: 'The model output was valid JSON but failed structural schema validation. Required diagnostic fields were missing or invalid.',
     modelRefusalErrorNotice: 'The model refused to process this diagnostic request. Please review the image and symptom text for compliance with safety guidelines.',
@@ -829,6 +940,31 @@ export const translations: Record<SupportedLanguage, Translations> = {
     subnavMatrix: 'Hypothesis Evolution Matrix',
     subnavTimeline: 'Evidence Timeline',
     subnavReport: 'Report Export',
+    subnavTheory: 'Theory & Architecture',
+    dockNavTheory: 'Theory',
+    analysisDepthLabel: 'Analysis Depth',
+    depthBasic: 'Basic',
+    depthBasicDesc: 'Rapid triage & visual defect scan',
+    depthStandard: 'Standard',
+    depthStandardDesc: 'Comprehensive diagnosis & safety checks',
+    depthAdvanced: 'Advanced',
+    depthAdvancedDesc: 'In-depth circuit theory & block modeling',
+    theorySectionTitle: 'Circuit Theory & Understanding',
+    theorySectionSubtitle: 'Theoretical operating principles, component functions, and functional block relationships.',
+    theoryOperatingPrinciples: 'Operating Principles',
+    theoryExpectedBehavior: 'Expected Nominal Behavior',
+    theoryFailureMechanism: 'Failure Mechanisms',
+    theoryFunctionalBlockDiagram: 'Functional Block Diagram',
+    theoryConfirmed: 'Confirmed Trace',
+    theoryInferred: 'Inferred Association',
+    theoryUnknown: 'Unverified / Unknown',
+    theoryComponentRoles: 'Identified Component Roles',
+    theoryDisclaimerNotice: 'Functional blocks and signal relationships are synthesized from visual topology and domain heuristics without a verified schematic netlist. Confirm continuity and node impedances with a bench multimeter.',
+    noTheoryAvailable: 'No specific circuit theory model generated for this assessment. Run diagnosis or select Advanced depth to generate circuit understanding.',
+    assistantModeLive: 'Live AI',
+    assistantModeOffline: 'Offline Preview',
+    assistantModeLiveNotice: 'Live model inference connected via backend proxy.',
+    assistantModeOfflineNotice: 'Deterministic offline evaluation running locally.',
 
     // Stage 6B-4B-3D: Ambiguous Hypothesis Decoupling & Localization
     ambiguousIdentityBadge: 'Ambiguous Identity',
@@ -1009,7 +1145,50 @@ export const translations: Record<SupportedLanguage, Translations> = {
     replaceImageBtn: 'Reemplazar Foto',
     removeImageBtn: 'Eliminar Foto',
     formSectionTitle: 'Perfil de Síntomas Operativos',
+    intakeGuidanceLabel: 'Modo de Orientación de Entrada',
+    intakeModeFault: 'Falla Sospechada',
+    intakeModeFaultDesc: 'He observado un síntoma anormal o defecto en el circuito',
+    intakeModeUncertain: 'Inseguro / No lo sé',
+    intakeModeUncertainDesc: 'No sé qué está mal: guíeme con comprobaciones visuales y sin energía seguras',
+    intakeModeCheck: 'Comprobación General',
+    intakeModeCheckDesc: 'Inspeccionar si los componentes y el diseño del circuito parecen normales',
+    intakeUncertainExpected: 'Estado operativo nominal o línea base desconocida',
+    intakeUncertainObserved: 'No sé qué está mal. Inspeccione la placa visualmente en busca de anomalías obvias, identifique puntos clave y guíeme en comprobaciones seguras.',
+    intakeCheckExpected: 'Función nominal del circuito e integridad física',
+    intakeCheckObserved: 'Inspección general de línea base. La placa no presenta fallas activas conocidas; verifique si los componentes y el diseño parecen normales.',
+    quickSwitchToBasicBtn: 'Cambiar a Profundidad Básica y Reintentar',
     boardNameLabel: 'Nombre / Identificador de la Placa',
+
+    // Simplified Header & Navigation
+    headerHome: 'Inicio',
+    headerWorkbench: 'Banco',
+    headerAllCases: 'Casos',
+    headerNewCase: '+ Nuevo',
+    modeLiveAi: 'IA en Vivo',
+    modeOfflineDemo: 'Demo Offline',
+    newInvestigationFallback: 'Nueva Investigación',
+
+    // Welcome Screen
+    welcomeTagline: 'Banco de Diagnóstico Electrónico con IA',
+    welcomeSubtitle: 'Resolución sistemática de problemas en placas de circuitos. Suba fotos para aislar anomalías visuales, evaluar hipótesis de fallas y registrar mediciones.',
+    welcomeStartCardTitle: 'Iniciar Nueva Investigación',
+    welcomeStartCardDesc: 'Suba una fotografía de PCB o esquema para comenzar el triaje visual estructurado y análisis de defectos.',
+    welcomeStartBtn: 'Iniciar Investigación →',
+    welcomeDemoCardTitle: 'Explorar Demostración Interactiva',
+    welcomeDemoCardDesc: 'Pruebe CircuitLens con el caso de referencia Arduino Uno SMD (caída de 5V y sobrecalentamiento del regulador).',
+    welcomeDemoBtn: 'Ver Demostración →',
+    welcomeRecentTitle: 'Investigaciones Recientes',
+    welcomeRecentSubtitle: 'Continúe sus casos activos guardados localmente en el navegador.',
+    welcomeRecentEmpty: 'Aún no hay casos guardados. Inicie una nueva investigación o pruebe la demostración.',
+    welcomeResumeBtn: 'Continuar Caso',
+    welcomeViewAllBtn: 'Ver Todos los Casos',
+    welcomeHighlightsTitle: 'Capacidades del Flujo de Diagnóstico',
+    welcomeFeature1Title: 'Triaje Visual y de Síntomas',
+    welcomeFeature1Desc: 'La inspección óptica multimodal detecta componentes quemados, fisuras y puentes de soldadura.',
+    welcomeFeature2Title: 'Razonamiento Basado en Evidencia',
+    welcomeFeature2Desc: 'Las hipótesis evolucionan dinámicamente según registra mediciones de resistencia, voltajes y pruebas de diodo.',
+    welcomeFeature3Title: 'Procedimientos Guiados Seguros',
+    welcomeFeature3Desc: 'Prioriza comprobaciones no destructivas sin energía con advertencias de seguridad eléctrica.',
     boardNameOptional: '(Opcional)',
     boardNamePlaceholder: 'ej., ESP32 Motor Controller Rev 2, Fuente Conmutada v1.4',
     expectedBehaviorLabel: 'Comportamiento Nominal Esperado',
@@ -1066,7 +1245,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
     rateLimitErrorNotice: 'Límite de peticiones de Model API alcanzado. Espere unos momentos antes de reintentar.',
     timeoutErrorNotice: 'La solicitud de diagnóstico excedió el tiempo límite. El modelo tardó demasiado en completar la inferencia visual.',
     genericErrorNotice: 'Ocurrió un error inesperado durante el diagnóstico. Sus síntomas ingresados y la imagen se han preservado.',
-    outputLimitErrorNotice: 'El modelo alcanzó el límite máximo de tokens de salida antes de completar el diagnóstico. Proporcione notas de entrada más concisas o comuníquese con soporte.',
+    outputLimitErrorNotice: 'El análisis diagnóstico alcanzó su capacidad de respuesta al evaluar la placa. Cambie a la profundidad "Básica" para una evaluación rápida y compacta, o use el Asistente de Caso para comprobaciones guiadas.',
     invalidOutputErrorNotice: 'El modelo generó una respuesta no analizable. La salida sin procesar no cumplió con la sintaxis JSON estándar.',
     schemaValidationErrorNotice: 'La salida del modelo era JSON válido pero falló la validación del esquema estructural. Faltaban campos de diagnóstico requeridos o eran inválidos.',
     modelRefusalErrorNotice: 'El modelo se negó a procesar esta solicitud de diagnóstico. Revise la imagen y la descripción de síntomas para verificar el cumplimiento de las pautas de seguridad.',
@@ -1305,6 +1484,31 @@ export const translations: Record<SupportedLanguage, Translations> = {
     subnavMatrix: 'Matriz de Evolución',
     subnavTimeline: 'Línea de Tiempo',
     subnavReport: 'Exportar Informe',
+    subnavTheory: 'Teoría y Arquitectura',
+    dockNavTheory: 'Teoría',
+    analysisDepthLabel: 'Profundidad de Análisis',
+    depthBasic: 'Básico',
+    depthBasicDesc: 'Clasificación rápida y escaneo de defectos visuales',
+    depthStandard: 'Estándar',
+    depthStandardDesc: 'Diagnóstico exhaustivo y revisiones de seguridad',
+    depthAdvanced: 'Avanzado',
+    depthAdvancedDesc: 'Teoría de circuitos detallada y modelado de bloques',
+    theorySectionTitle: 'Teoría de Circuitos y Comprensión',
+    theorySectionSubtitle: 'Principios de funcionamiento teórico, funciones de componentes y bloques funcionales.',
+    theoryOperatingPrinciples: 'Principios de Funcionamiento',
+    theoryExpectedBehavior: 'Comportamiento Nominal Esperado',
+    theoryFailureMechanism: 'Mecanismos de Falla',
+    theoryFunctionalBlockDiagram: 'Diagrama de Bloques Funcionales',
+    theoryConfirmed: 'Pista Confirmada',
+    theoryInferred: 'Asociación Inferida',
+    theoryUnknown: 'No Verificado / Desconocido',
+    theoryComponentRoles: 'Roles de Componentes Identificados',
+    theoryDisclaimerNotice: 'Los bloques funcionales y las relaciones de señal se sintetizan a partir de la topología visual y heurísticas sin un esquema verificado. Confirme continuidad e impedancias con multímetro de banco.',
+    noTheoryAvailable: 'No se generó un modelo de teoría de circuitos para esta evaluación. Ejecute el diagnóstico o seleccione profundidad Avanzada.',
+    assistantModeLive: 'IA en Vivo',
+    assistantModeOffline: 'Vista Previa Offline',
+    assistantModeLiveNotice: 'Inferencia de modelo en vivo conectada mediante proxy.',
+    assistantModeOfflineNotice: 'Evaluación determinista sin conexión ejecutándose localmente.',
 
     // Stage 6B-4B-3D: Ambiguous Hypothesis Decoupling & Localization
     ambiguousIdentityBadge: 'Identidad Ambigua',
@@ -1485,7 +1689,50 @@ export const translations: Record<SupportedLanguage, Translations> = {
     replaceImageBtn: 'استبدال الصورة',
     removeImageBtn: 'إزالة الصورة',
     formSectionTitle: 'توصيف العطل والسياق التشغيلي',
+    intakeGuidanceLabel: 'وضع توجيه الإدخال',
+    intakeModeFault: 'عطل مشتبه به',
+    intakeModeFaultDesc: 'لاحظت عرضًا غير طبيعي أو عيبًا في الدائرة',
+    intakeModeUncertain: 'غير متأكد / لا أعرف',
+    intakeModeUncertainDesc: 'لا أعرف ما هو العطل — أرشدني بفحوصات بصرية وآمنة دون تشغيل',
+    intakeModeCheck: 'فحص سلامة عام',
+    intakeModeCheckDesc: 'فحص ما إذا كانت مكونات الدائرة وتخطيطها تبدو طبيعية',
+    intakeUncertainExpected: 'حالة التشغيل الاسمية أو خط الأساس غير المعروف',
+    intakeUncertainObserved: 'لا أعرف ما هو العطل. يرجى فحص اللوحة بصريًا بحثًا عن أي شذوذ واضح، وتحديد المعالم الرئيسية، وإرشادي إلى فحوصات آمنة.',
+    intakeCheckExpected: 'الوظيفة الاسمية للدائرة والسلامة المادية',
+    intakeCheckObserved: 'فحص خط الأساس العام. اللوحة لا تحتوي على أعطال نشطة معروفة؛ تحقق مما إذا كانت المكونات والتخطيط تبدو طبيعية.',
+    quickSwitchToBasicBtn: 'التبديل إلى العمق الأساسي وإعادة المحاولة',
     boardNameLabel: 'اسم أو معرّف اللوحة الإلكترونية',
+
+    // Simplified Header & Navigation
+    headerHome: 'الرئيسية',
+    headerWorkbench: 'منصة العمل',
+    headerAllCases: 'الحالات',
+    headerNewCase: '+ فحص جديد',
+    modeLiveAi: 'ذكاء اصطناعي مباشر',
+    modeOfflineDemo: 'عرض دون اتصال',
+    newInvestigationFallback: 'فحص جديد',
+
+    // Welcome Screen
+    welcomeTagline: 'منصة ذكية لتشخيص أعطال الدوائر الإلكترونية',
+    welcomeSubtitle: 'تشخيص منهجي لأعطال لوحات الدوائر الإلكترونية. ارفع صور اللوحة لاكتشاف العيوب البصرية، وتقييم الفرضيات، وتتبع مسار العطل مع تسجيل القياسات.',
+    welcomeStartCardTitle: 'بدء فحص جديد',
+    welcomeStartCardDesc: 'ارفع صورة للوحة أو مخطط الدائرة للبدء في الفرز البصري وتحليل العيوب المادية.',
+    welcomeStartBtn: 'بدء الفحص الآن ←',
+    welcomeDemoCardTitle: 'استكشاف العرض التوضيحي',
+    welcomeDemoCardDesc: 'جرّب CircuitLens مع دارة Arduino Uno SMD النموذجية (انهيار خط 5V وارتفاع حرارة المنظم).',
+    welcomeDemoBtn: 'تشغيل العرض التوضيحي ←',
+    welcomeRecentTitle: 'الفحوصات الأخيرة',
+    welcomeRecentSubtitle: 'متابعة الحالات النشطة المحفوظة محلياً في متصفحك.',
+    welcomeRecentEmpty: 'لا توجد فحوصات محفوظة حتى الآن. ابدأ فحصاً جديداً أو استكشف العرض التوضيحي.',
+    welcomeResumeBtn: 'متابعة الفحص',
+    welcomeViewAllBtn: 'عرض جميع الفحوصات',
+    welcomeHighlightsTitle: 'إمكانيات مسار التشخيص',
+    welcomeFeature1Title: 'فرز بصري وتشخيص للأعراض',
+    welcomeFeature1Desc: 'فحص بصري متعدد الوسائط يكتشف المكونات المحترقة، والتشققات، وجسور اللحام.',
+    welcomeFeature2Title: 'استدلال قائم على الأدلة',
+    welcomeFeature2Desc: 'تتطور فرضيات العطل تلقائياً مع تسجيلك لقياسات المقاومة وجهود التغذية واختبارات الدايود.',
+    welcomeFeature3Title: 'إجراءات موجهة وآمنة',
+    welcomeFeature3Desc: 'أولوية للاختبارات الآمنة دون توصيل الطاقة مع تحذيرات واضحة للوقاية من الصعق والتفريغ الكهربائي.',
     boardNameOptional: '(اختياري)',
     boardNamePlaceholder: 'مثال: ESP32 Motor Controller Rev 2, Power Supply V1.2',
     expectedBehaviorLabel: 'السلوك التشغيلي المتوقع',
@@ -1542,7 +1789,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
     rateLimitErrorNotice: 'تم بلوغ الحد الأقصى لمعدل الطلبات في Model API. يُرجى الانتظار قليلاً ثم المحاولة مجدداً.',
     timeoutErrorNotice: 'انتهت مهلة طلب التشخيص. استغرق النموذج وقتاً طويلاً لإتمام المعالجة البصرية.',
     genericErrorNotice: 'حدث خطأ غير متوقع أثناء معالجة التشخيص. تم حفظ بيانات الأعراض والصورة المدخلة بأمان.',
-    outputLimitErrorNotice: 'وصل النموذج إلى الحد الأقصى لرموز الإخراج قبل إكمال التشخيص. يرجى تقديم ملاحظات أكثر إيجازًا أو الاتصال بالدعم.',
+    outputLimitErrorNotice: 'وصل التحليل التشخيصي إلى سعة الاستجابة القصوى أثناء تقييم الدائرة. قم بالتبديل إلى عمق التحليل "الأساسي" للحصول على تشخيص سريع وموجز، أو استخدم مساعد الحالة لإجراء فحوصات موجهة.',
     invalidOutputErrorNotice: 'أنتج النموذج استجابة غير قابلة للتحليل. لم تتوافق المخرجات مع بنية JSON القياسية.',
     schemaValidationErrorNotice: 'كانت مخرجات النموذج بتنسيق JSON صالح لكنها فشلت في التحقق من صحة المخطط الهيكلي. حقول التشخيص المطلوبة مفقودة أو غير صالحة.',
     modelRefusalErrorNotice: 'رفض النموذج معالجة طلب التشخيص هذا. يرجى مراجعة الصورة ووصف الأعراض للتأكد من التوافق مع إرشادات السلامة.',
@@ -1781,6 +2028,31 @@ export const translations: Record<SupportedLanguage, Translations> = {
     subnavMatrix: 'مصفوفة تطور الفرضيات',
     subnavTimeline: 'الجدول الزمني للأدلة',
     subnavReport: 'تصدير التقرير',
+    subnavTheory: 'النظرية والمعمارية',
+    dockNavTheory: 'النظرية',
+    analysisDepthLabel: 'عمق التحليل',
+    depthBasic: 'أساسي',
+    depthBasicDesc: 'فرز سريع ومسح بصري للعيوب',
+    depthStandard: 'قياسي',
+    depthStandardDesc: 'تشخيص شامل وفحوصات أمان',
+    depthAdvanced: 'متقدم',
+    depthAdvancedDesc: 'نظرية دوائر متعمقة ونمذجة الكتل الوظيفية',
+    theorySectionTitle: 'نظرية الدوائر والفهم الوظيفي',
+    theorySectionSubtitle: 'المبادئ التشغيلية النظرية ووظائف المكونات وعلاقات الكتل الوظيفية.',
+    theoryOperatingPrinciples: 'مبادئ التشغيل',
+    theoryExpectedBehavior: 'السلوك الاسمي المتوقع',
+    theoryFailureMechanism: 'آليات الفشل',
+    theoryFunctionalBlockDiagram: 'مخطط الكتل الوظيفية',
+    theoryConfirmed: 'مسار مؤكد',
+    theoryInferred: 'ارتباط مستنتج',
+    theoryUnknown: 'غير مؤكد / مجهول',
+    theoryComponentRoles: 'أدوار المكونات المحددة',
+    theoryDisclaimerNotice: 'يتم استنتاج الكتل الوظيفية وعلاقات الإشارات من التخطيط البصري وقواعد التقدير دون مخطط تفصيلي مؤكد. تحقق من الاستمرارية والمقاومة باستخدام مقياس متعدد على طاولة الفحص.',
+    noTheoryAvailable: 'لم يتم إنشاء نموذج لنظرية الدوائر لهذا التقييم. أعد التشخيص أو اختر العمق المتقدم.',
+    assistantModeLive: 'ذكاء اصطناعي مباشر',
+    assistantModeOffline: 'معاينة دون اتصال',
+    assistantModeLiveNotice: 'استدلال النماذج المباشر متصل عبر الخادم الوسيط.',
+    assistantModeOfflineNotice: 'تقييم محلي محدد يعمل دون اتصال.',
 
     // Stage 6B-4B-3D: Ambiguous Hypothesis Decoupling & Localization
     ambiguousIdentityBadge: 'هوية ملتبسة',

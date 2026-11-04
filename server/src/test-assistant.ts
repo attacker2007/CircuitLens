@@ -466,6 +466,52 @@ async function runEndpointTest() {
     const errData = (await badRes.json()) as any;
     assert.strictEqual(errData.errorType, 'INVALID_INPUT');
     console.log('  ✓ PASS: Empty message returns structured HTTP 400');
+
+    // 4.4 Test mode: 'live' without API keys fails cleanly with HTTP 500 and does NOT fallback silently
+    const origBaseten = process.env.BASETEN_API_KEY;
+    const origMeta = process.env.MODEL_API_KEY;
+    delete process.env.BASETEN_API_KEY;
+    delete process.env.MODEL_API_KEY;
+    try {
+      const liveReqRes = await fetch(`http://localhost:${port}/api/assistant/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          investigationId: 'inv_test_100',
+          message: 'Explain circuit failure',
+          mode: 'live',
+          context: {
+            ...sampleContext,
+            analysisDepth: 'advanced',
+          },
+        }),
+      });
+      assert.strictEqual(liveReqRes.status, 500);
+      const liveErr = (await liveReqRes.json()) as any;
+      assert.strictEqual(liveErr.success, false);
+      assert.strictEqual(liveErr.errorType, 'MISSING_API_KEY');
+      console.log('  ✓ PASS: Live AI mode rejects missing credentials cleanly without silent fallback');
+    } finally {
+      if (origBaseten) process.env.BASETEN_API_KEY = origBaseten;
+      if (origMeta) process.env.MODEL_API_KEY = origMeta;
+    }
+
+    // 4.5 Test invalid mode rejection
+    const invalidModeRes = await fetch(`http://localhost:${port}/api/assistant/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        investigationId: 'inv_test_100',
+        message: 'Test message',
+        mode: 'unsupported_mode',
+        context: sampleContext,
+      }),
+    });
+    assert.strictEqual(invalidModeRes.status, 400);
+    const invalidModeErr = (await invalidModeRes.json()) as any;
+    assert.strictEqual(invalidModeErr.errorType, 'INVALID_INPUT');
+    assert.ok(invalidModeErr.message.includes('mode'));
+    console.log('  ✓ PASS: Unsupported mode is rejected with HTTP 400');
   } finally {
     await new Promise<void>((resolve) => ephemeralServer.close(() => resolve()));
     console.log('  ✓ PASS: Ephemeral test server closed cleanly');
@@ -475,5 +521,5 @@ async function runEndpointTest() {
 await runEndpointTest();
 
 console.log('\n======================================================================');
-console.log(' Assistant Server Tests: ALL 20 PASSED (0 FAILED)');
+console.log(' Assistant Server Tests: ALL 22 PASSED (0 FAILED)');
 console.log('======================================================================');

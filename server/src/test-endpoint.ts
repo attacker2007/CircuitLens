@@ -98,6 +98,8 @@ async function runEndpointTests() {
     assert(healthRes.status === 200, 'GET /api/health returns HTTP 200');
     assert(healthJson.status === 'ok', 'Status is "ok"');
     assert(healthJson.service === 'CircuitLens Backend API', 'Service name matches');
+    assert(healthJson.mode === 'live', 'Live server returns mode: "live"');
+    assert(healthJson.inferenceVerified === false, 'inferenceVerified is false (truthful health contract)');
 
     // -----------------------------------------------------------------------
     // Test 2: GET /api/test-meta (missing key handling)

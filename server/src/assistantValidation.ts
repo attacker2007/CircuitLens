@@ -15,6 +15,7 @@ import type {
   ConfidenceLevel,
   RevisedHypothesisStatus,
   CheckOutcome,
+  AnalysisDepth,
 } from './types/diagnosis.js';
 
 export class AssistantValidationError extends Error {
@@ -59,6 +60,7 @@ const VALID_CHECK_OUTCOMES = new Set<string>([
   'unable_to_perform',
   'aborted',
 ]);
+const VALID_ANALYSIS_DEPTHS = new Set<AnalysisDepth>(['basic', 'standard', 'advanced']);
 
 /**
  * Validates a single non-empty bounded string.
@@ -422,6 +424,14 @@ export function validateAssistantInvestigationContext(
     }
   }
 
+  let analysisDepth: AnalysisDepth | undefined = undefined;
+  if (raw.analysisDepth !== undefined && raw.analysisDepth !== null) {
+    if (typeof raw.analysisDepth !== 'string' || !VALID_ANALYSIS_DEPTHS.has(raw.analysisDepth as AnalysisDepth)) {
+      throw new AssistantValidationError('Field "context.analysisDepth" must be "basic", "standard", or "advanced".');
+    }
+    analysisDepth = raw.analysisDepth as AnalysisDepth;
+  }
+
   return {
     investigationId,
     boardName,
@@ -432,6 +442,7 @@ export function validateAssistantInvestigationContext(
     technicianEvidenceLog,
     recommendedChecks,
     timelineHighlights,
+    analysisDepth,
   };
 }
 
@@ -484,10 +495,21 @@ export function validateAssistantRequest(body: unknown): AssistantChatRequest {
     }
   }
 
+  // 5. mode validation ('live' | 'offline', default 'offline')
+  let mode: 'live' | 'offline' = 'offline';
+  if (raw.mode !== undefined && raw.mode !== null) {
+    if (raw.mode === 'live' || raw.mode === 'offline') {
+      mode = raw.mode;
+    } else {
+      throw new AssistantValidationError('Field "mode" must be "live" or "offline" if provided.');
+    }
+  }
+
   return {
     investigationId,
     message,
     context,
     conversationHistory: history,
+    mode,
   };
 }

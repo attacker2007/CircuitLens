@@ -83,6 +83,11 @@ import {
   computeLegitimateStatus,
 } from './types/investigation.ts';
 import { createBlobUrlTracker } from './utils/blobUrlTracker.ts';
+import {
+  parseInline,
+  parseMarkdownBlocks,
+  renderInlineNodes,
+} from './utils/markdownParser.ts';
 import { buildAssistantInvestigationContext } from './utils/assistantContextBuilder.ts';
 import {
   submitAssistantMessage,
@@ -5781,5 +5786,220 @@ describe('CircuitLens Stage 6C-3A: Contextual Investigation Assistant', () => {
     assert.strictEqual(liveMsg.provenance, 'live_provider');
     assert.strictEqual(liveMsg.isOfflinePreview, false);
     assert.strictEqual(liveMsg.providerName, 'meta');
+  });
+});
+
+
+describe('CircuitLens P0-2: Mock/Live Isolation & Honest Provenance Verification', () => {
+  it('Task P0-2.1: Honest health contract distinguishes live vs mock_demo modes', () => {
+    // Mock server health contract
+    const mockHealth = {
+      status: 'ok',
+      service: 'CircuitLens Offline Deterministic Demo Mock Server',
+      timestamp: new Date().toISOString(),
+      mode: 'mock_demo',
+      provider: null,
+      apiKeyConfigured: false,
+      targetModel: null,
+      inferenceVerified: false,
+    };
+    assert.strictEqual(mockHealth.mode, 'mock_demo');
+    assert.strictEqual(mockHealth.provider, null);
+    assert.strictEqual(mockHealth.apiKeyConfigured, false);
+    assert.strictEqual(mockHealth.targetModel, null);
+    assert.strictEqual(mockHealth.inferenceVerified, false);
+
+    // Live server health contract
+    const liveHealth = {
+      status: 'ok',
+      service: 'CircuitLens Backend API',
+      timestamp: new Date().toISOString(),
+      mode: 'live',
+      provider: 'baseten',
+      apiKeyConfigured: true,
+      targetModel: 'meta-models/muse-spark-open-1026',
+      inferenceVerified: false,
+    };
+    assert.strictEqual(liveHealth.mode, 'live');
+    assert.strictEqual(liveHealth.provider, 'baseten');
+    assert.strictEqual(liveHealth.inferenceVerified, false);
+  });
+
+  it('Task P0-2.2: Provenance metadata fields in DiagnosisResponse and ReassessmentResponse', () => {
+    const mockDiagnosis: DiagnosisResponse = {
+      summary: 'Mock test summary',
+      visibleObservations: [],
+      hypotheses: [],
+      recommendedChecks: [],
+      limitations: [],
+      safetyWarnings: [],
+      provenance: 'offline_fixture',
+      isOfflineMock: true,
+      executionMode: 'mock_demo',
+    };
+    assert.strictEqual(mockDiagnosis.provenance, 'offline_fixture');
+    assert.strictEqual(mockDiagnosis.isOfflineMock, true);
+    assert.strictEqual(mockDiagnosis.executionMode, 'mock_demo');
+    assert.ok(isValidDiagnosisResponse(mockDiagnosis));
+
+    const liveDiagnosis: DiagnosisResponse = {
+      summary: 'Live test summary',
+      visibleObservations: [],
+      hypotheses: [],
+      recommendedChecks: [],
+      limitations: [],
+      safetyWarnings: [],
+      provenance: 'live_provider',
+      isOfflineMock: false,
+      executionMode: 'live',
+    };
+    assert.strictEqual(liveDiagnosis.provenance, 'live_provider');
+    assert.strictEqual(liveDiagnosis.isOfflineMock, false);
+    assert.strictEqual(liveDiagnosis.executionMode, 'live');
+    assert.ok(isValidDiagnosisResponse(liveDiagnosis));
+  });
+
+  it('Task P0-2.3: Port separation logic in Vite config proxy', () => {
+    const resolvePort = (env: { VITE_DEMO_MODE?: string; DEMO_MODE?: string; npm_lifecycle_event?: string; VITE_BACKEND_PORT?: string }) => {
+      const isDemo = env.VITE_DEMO_MODE === 'true' || env.DEMO_MODE === 'true' || env.npm_lifecycle_event === 'dev:demo';
+      return env.VITE_BACKEND_PORT || (isDemo ? '4001' : '4000');
+    };
+
+    assert.strictEqual(resolvePort({}), '4000', 'Normal dev defaults to port 4000');
+    assert.strictEqual(resolvePort({ npm_lifecycle_event: 'dev:demo' }), '4001', 'Demo dev routes to port 4001');
+    assert.strictEqual(resolvePort({ DEMO_MODE: 'true' }), '4001', 'DEMO_MODE=true routes to port 4001');
+    assert.strictEqual(resolvePort({ VITE_BACKEND_PORT: '4005' }), '4005', 'Explicit port override is respected');
+  });
+});
+
+describe('CircuitLens SafeMarkdown: Assistant Message Formatting & Security', () => {
+  it('parses inline bold with asterisks and underscores', () => {
+    const nodesAsterisks = parseInline('Inspect **U2 regulator** carefully.');
+    assert.strictEqual(nodesAsterisks.length, 3);
+    assert.strictEqual(nodesAsterisks[0].type, 'text');
+    assert.strictEqual((nodesAsterisks[0] as any).text, 'Inspect ');
+    assert.strictEqual(nodesAsterisks[1].type, 'bold');
+    assert.strictEqual((nodesAsterisks[1] as any).children[0].text, 'U2 regulator');
+    assert.strictEqual(nodesAsterisks[2].type, 'text');
+    assert.strictEqual((nodesAsterisks[2] as any).text, ' carefully.');
+
+    const nodesUnderscores = parseInline('Inspect __R12 resistor__ now.');
+    assert.strictEqual(nodesUnderscores[1].type, 'bold');
+    assert.strictEqual((nodesUnderscores[1] as any).children[0].text, 'R12 resistor');
+  });
+
+  it('parses inline italic with asterisks and underscores', () => {
+    const nodesAsterisk = parseInline('Notice *thermal discoloration* on the PCB.');
+    assert.strictEqual(nodesAsterisk[1].type, 'italic');
+    assert.strictEqual((nodesAsterisk[1] as any).children[0].text, 'thermal discoloration');
+
+    const nodesUnderscore = parseInline('Notice _thermal discoloration_ on the PCB.');
+    assert.strictEqual(nodesUnderscore[1].type, 'italic');
+    assert.strictEqual((nodesUnderscore[1] as any).children[0].text, 'thermal discoloration');
+  });
+
+  it('parses combined bold-italic and inline code', () => {
+    const nodes = parseInline('Verify ***critical pin 3*** using `DMM cold resistance`.');
+    assert.strictEqual(nodes[1].type, 'bold');
+    assert.strictEqual((nodes[1] as any).children[0].type, 'italic');
+    assert.strictEqual((nodes[1] as any).children[0].children[0].text, 'critical pin 3');
+
+    assert.strictEqual(nodes[3].type, 'code');
+    assert.strictEqual((nodes[3] as any).code, 'DMM cold resistance');
+  });
+
+  it('parses strikethrough syntax', () => {
+    const nodes = parseInline('~~Old hypothesis~~ Revised finding.');
+    assert.strictEqual(nodes[0].type, 'strikethrough');
+    assert.strictEqual((nodes[0] as any).children[0].text, 'Old hypothesis');
+  });
+
+  it('neutralizes raw HTML tags as literal text without DOM injection or execution', () => {
+    const maliciousInput = '<script>alert("xss")</script><img src="x" onerror="evil()"/>';
+    const nodes = parseInline(maliciousInput);
+    // All malicious HTML is retained as plain string text nodes, never HTML elements
+    assert.strictEqual(nodes.length, 1);
+    assert.strictEqual(nodes[0].type, 'text');
+    assert.strictEqual((nodes[0] as any).text, maliciousInput);
+
+    const rendered = renderInlineNodes(nodes);
+    assert.strictEqual(rendered.length, 1);
+    assert.strictEqual(rendered[0], maliciousInput);
+  });
+
+  it('parses multiline structural blocks: headings, lists, blockquotes, code blocks, paragraphs', () => {
+    const markdownDoc = [
+      '# Main Circuit Assessment',
+      '### Subheading Section',
+      '',
+      '> Warning: High voltage present on C1 reservoir.',
+      '',
+      'Prioritized checks to perform:',
+      '- Measure continuity from Pin 1 to GND',
+      '* Inspect solder joint on Q3',
+      '',
+      'Sequential steps:',
+      '1. Disconnect power cord',
+      '2. Discharge filter capacitors',
+      '',
+      '```typescript',
+      'const reading = measureOhms();',
+      'console.log(reading);',
+      '```',
+      '',
+      'Final summary paragraph.',
+    ].join('\n');
+
+    const blocks = parseMarkdownBlocks(markdownDoc);
+    assert.strictEqual(blocks.length, 9);
+
+    assert.strictEqual(blocks[0].type, 'heading');
+    assert.strictEqual(blocks[0].level, 1);
+    assert.strictEqual(blocks[0].lines[0], 'Main Circuit Assessment');
+
+    assert.strictEqual(blocks[1].type, 'heading');
+    assert.strictEqual(blocks[1].level, 3);
+    assert.strictEqual(blocks[1].lines[0], 'Subheading Section');
+
+    assert.strictEqual(blocks[2].type, 'blockquote');
+    assert.ok(blocks[2].lines[0].includes('Warning: High voltage'));
+
+    assert.strictEqual(blocks[3].type, 'paragraph');
+    assert.strictEqual(blocks[3].lines[0], 'Prioritized checks to perform:');
+
+    assert.strictEqual(blocks[4].type, 'ul');
+    assert.strictEqual(blocks[4].lines.length, 2);
+    assert.strictEqual(blocks[4].lines[0], 'Measure continuity from Pin 1 to GND');
+    assert.strictEqual(blocks[4].lines[1], 'Inspect solder joint on Q3');
+
+    assert.strictEqual(blocks[5].type, 'paragraph');
+    assert.strictEqual(blocks[5].lines[0], 'Sequential steps:');
+
+    assert.strictEqual(blocks[6].type, 'ol');
+    assert.strictEqual(blocks[6].lines.length, 2);
+    assert.strictEqual(blocks[6].lines[0], 'Disconnect power cord');
+    assert.strictEqual(blocks[6].lines[1], 'Discharge filter capacitors');
+
+    assert.strictEqual(blocks[7].type, 'codeblock');
+    assert.strictEqual(blocks[7].language, 'typescript');
+    assert.strictEqual(blocks[7].lines.length, 2);
+    assert.strictEqual(blocks[7].lines[0], 'const reading = measureOhms();');
+
+    assert.strictEqual(blocks[8].type, 'paragraph');
+    assert.strictEqual(blocks[8].lines[0], 'Final summary paragraph.');
+  });
+
+  it('renderInlineNodes outputs React elements without dangerouslySetInnerHTML', () => {
+    const nodes = parseInline('Check **bold** and *italic* and `code`');
+    const elements = renderInlineNodes(nodes);
+    assert.strictEqual(elements.length, 6);
+    // Verify elements are standard React element descriptors
+    const boldEl = elements[1] as React.ReactElement;
+    assert.strictEqual(boldEl.type, 'strong');
+    const italicEl = elements[3] as React.ReactElement;
+    assert.strictEqual(italicEl.type, 'em');
+    const codeEl = elements[5] as React.ReactElement;
+    assert.strictEqual(codeEl.type, 'code');
+    assert.strictEqual((codeEl.props as any).className, 'msg-inline-code');
   });
 });

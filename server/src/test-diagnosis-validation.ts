@@ -334,6 +334,152 @@ function runTests() {
     assert(err instanceof DiagnosisValidationError, 'Enforces max summary length bound');
   }
 
+  // Case 3.5: String-to-array safe normalization without data loss
+  console.log('\n[Case 3.5] String-to-array safe normalization');
+  const stringifiedListsFixture: any = getValidResponseFixture();
+  stringifiedListsFixture.safetyWarnings = 'Ensure main disconnect is open before touching circuit traces.';
+  stringifiedListsFixture.limitations = 'Single camera perspective limits visibility of obscured leads.';
+  stringifiedListsFixture.hypotheses[0].supportingEvidence = 'Discolored resistor package';
+  stringifiedListsFixture.recommendedChecks[0].toolsNeeded = 'Digital Multimeter';
+  stringifiedListsFixture.recommendedChecks[0].safetyNotes = 'Wear protective eyewear';
+
+  const normalizedStringLists = validateDiagnosisResponse(stringifiedListsFixture);
+  assert(Array.isArray(normalizedStringLists.safetyWarnings), 'Normalized safetyWarnings to array');
+  assert(normalizedStringLists.safetyWarnings[0].includes('Ensure main disconnect'), 'Preserved safety warning text');
+  assert(Array.isArray(normalizedStringLists.limitations), 'Normalized limitations to array');
+  assert(normalizedStringLists.limitations[0].includes('Single camera perspective'), 'Preserved limitation text');
+  assert(Array.isArray(normalizedStringLists.hypotheses[0].supportingEvidence), 'Normalized supportingEvidence to array');
+  assert(Array.isArray(normalizedStringLists.recommendedChecks[0].toolsNeeded), 'Normalized toolsNeeded to array');
+  assert(Array.isArray(normalizedStringLists.recommendedChecks[0].safetyNotes), 'Normalized safetyNotes to array');
+
+  // Case 3.6: Confidence casing and synonym normalization
+  console.log('\n[Case 3.6] Confidence casing and synonym normalization');
+  const mixedConfidenceFixture: any = getValidResponseFixture();
+  mixedConfidenceFixture.visibleObservations[0].confidence = 'High';
+  mixedConfidenceFixture.visibleObservations[1].confidence = ' MEDIUM ';
+  mixedConfidenceFixture.hypotheses[0].confidence = 'moderate';
+  const normalizedConfidence = validateDiagnosisResponse(mixedConfidenceFixture);
+  assert(normalizedConfidence.visibleObservations[0].confidence === 'high', 'Normalized "High" to "high"');
+  assert(normalizedConfidence.visibleObservations[1].confidence === 'medium', 'Normalized " MEDIUM " to "medium"');
+  assert(normalizedConfidence.hypotheses[0].confidence === 'medium', 'Normalized "moderate" to "medium"');
+
+  // Case 3.7: Step number string parsing
+  console.log('\n[Case 3.7] Step number string parsing and invalid rejection');
+  const stringStepFixture: any = getValidResponseFixture();
+  stringStepFixture.recommendedChecks[0].stepNumber = '1';
+  const normalizedStep = validateDiagnosisResponse(stringStepFixture);
+  assert(normalizedStep.recommendedChecks[0].stepNumber === 1, 'Normalized string stepNumber "1" to integer 1');
+
+  try {
+    const invalidStepFixture: any = getValidResponseFixture();
+    invalidStepFixture.recommendedChecks[0].stepNumber = '0';
+    validateDiagnosisResponse(invalidStepFixture);
+    assert(false, 'Should reject stepNumber 0');
+  } catch (err) {
+    assert(err instanceof DiagnosisValidationError, 'Rejects non-positive stepNumber');
+  }
+
+  try {
+    const nonNumericStepFixture: any = getValidResponseFixture();
+    nonNumericStepFixture.recommendedChecks[0].stepNumber = 'step_one';
+    validateDiagnosisResponse(nonNumericStepFixture);
+    assert(false, 'Should reject non-numeric stepNumber string');
+  } catch (err) {
+    assert(err instanceof DiagnosisValidationError, 'Rejects non-numeric stepNumber');
+  }
+
+  // Case 3.8: Optional limitations fallback to empty array
+  console.log('\n[Case 3.8] Optional limitations fallback to empty array');
+  const omittedLimitationsFixture: any = getValidResponseFixture();
+  delete omittedLimitationsFixture.limitations;
+  const normalizedOmittedLimitations = validateDiagnosisResponse(omittedLimitationsFixture);
+  assert(Array.isArray(normalizedOmittedLimitations.limitations), 'Omitted limitations defaults to array');
+  assert(normalizedOmittedLimitations.limitations.length === 0, 'Omitted limitations defaults to empty array []');
+
+  // Case 3.9: Mandatory safety warnings enforcement
+  console.log('\n[Case 3.9] Mandatory safety warnings enforcement');
+  try {
+    const emptyWarningsFixture: any = getValidResponseFixture();
+    emptyWarningsFixture.safetyWarnings = [];
+    validateDiagnosisResponse(emptyWarningsFixture);
+    assert(false, 'Should reject empty safetyWarnings array');
+  } catch (err) {
+    assert(err instanceof DiagnosisValidationError, 'Rejects empty safetyWarnings array');
+  }
+
+  try {
+    const missingWarningsFixture: any = getValidResponseFixture();
+    delete missingWarningsFixture.safetyWarnings;
+    validateDiagnosisResponse(missingWarningsFixture);
+    assert(false, 'Should reject missing safetyWarnings');
+  } catch (err) {
+    assert(err instanceof DiagnosisValidationError, 'Rejects missing safetyWarnings');
+  }
+
+  // Case 3.10: Structural rejection of missing core fields
+  console.log('\n[Case 3.10] Structural rejection of missing core fields');
+  try {
+    const missingSummary: any = getValidResponseFixture();
+    delete missingSummary.summary;
+    validateDiagnosisResponse(missingSummary);
+    assert(false, 'Should reject missing summary');
+  } catch (err) {
+    assert(err instanceof DiagnosisValidationError, 'Rejects missing summary');
+  }
+
+  try {
+    const missingHypotheses: any = getValidResponseFixture();
+    delete missingHypotheses.hypotheses;
+    validateDiagnosisResponse(missingHypotheses);
+    assert(false, 'Should reject missing hypotheses');
+  } catch (err) {
+    assert(err instanceof DiagnosisValidationError, 'Rejects missing hypotheses');
+  }
+
+  try {
+    const missingChecks: any = getValidResponseFixture();
+    delete missingChecks.recommendedChecks;
+    validateDiagnosisResponse(missingChecks);
+    assert(false, 'Should reject missing recommendedChecks');
+  } catch (err) {
+    assert(err instanceof DiagnosisValidationError, 'Rejects missing recommendedChecks');
+  }
+
+  // Case 3.11: Basic, Standard, and Advanced depth payloads
+  console.log('\n[Case 3.11] Analysis depth payload preservation');
+  const basicFixture: any = getValidResponseFixture();
+  basicFixture.analysisDepth = 'basic';
+  const validatedBasic = validateDiagnosisResponse(basicFixture);
+  assert(validatedBasic.analysisDepth === 'basic', 'Preserves basic analysis depth');
+
+  const advancedFixture: any = getValidResponseFixture();
+  advancedFixture.analysisDepth = 'advanced';
+  advancedFixture.circuitUnderstanding = {
+    operatingPrinciple: 'Buck converter step-down regulator.',
+    expectedBehavior: 'Converts 12V to stable 3.3V.',
+    failureMechanismTheory: 'Overcurrent causes thermal shutdown.',
+    relevantComponents: [{ designator: 'U2', function: 'Regulator', status: 'confirmed' }],
+  };
+  const validatedAdvanced = validateDiagnosisResponse(advancedFixture);
+  assert(validatedAdvanced.analysisDepth === 'advanced', 'Preserves advanced analysis depth');
+  assert(Boolean(validatedAdvanced.circuitUnderstanding?.operatingPrinciple.includes('Buck converter')), 'Preserves circuit understanding');
+
+  // Case 3.12: Truncated JSON / unclosed think block parsing rejection
+  console.log('\n[Case 3.12] Truncated JSON and malformed output handling');
+  try {
+    parseDiagnosisJson('<think>Analyzing circuit image step 1... Still thinking...');
+    assert(false, 'Should reject unclosed <think> tag');
+  } catch (err) {
+    assert(err instanceof DiagnosisParsingError, 'Rejects truncated reasoning block with DiagnosisParsingError');
+  }
+
+  try {
+    parseDiagnosisJson('{"summary": "Broken trace", "visibleObservations": [');
+    assert(false, 'Should reject truncated JSON');
+  } catch (err) {
+    assert(err instanceof DiagnosisParsingError, 'Rejects truncated JSON with DiagnosisParsingError');
+  }
+
   // =========================================================================
   // SUMMARY
   // =========================================================================

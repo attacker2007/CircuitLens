@@ -10,8 +10,8 @@ import { useState, useEffect } from 'react';
 import type { Translations } from '../i18n';
 
 export interface MobileBottomActionDockProps {
-  activePerspective: 'overview' | 'matrix' | 'timeline' | 'report';
-  onPerspectiveChange: (perspective: 'overview' | 'matrix' | 'timeline' | 'report') => void;
+  activePerspective: 'overview' | 'matrix' | 'timeline' | 'report' | 'theory';
+  onPerspectiveChange: (perspective: 'overview' | 'matrix' | 'timeline' | 'report' | 'theory') => void;
   evidenceCount: number;
   reassessmentCount: number;
   isReassessing: boolean;
@@ -200,7 +200,34 @@ export function MobileBottomActionDock({
           <span className="mobile-dock-label">{t.dockNavTimeline}</span>
         </button>
 
-        {/* 4. Report Export */}
+        {/* 4. Theory & Architecture */}
+        <button
+          type="button"
+          className={`mobile-dock-item ${activePerspective === 'theory' ? 'active' : ''}`}
+          data-dock-item="theory"
+          onClick={() => onPerspectiveChange('theory')}
+          aria-current={activePerspective === 'theory' ? 'page' : undefined}
+          aria-label={t.subnavTheory}
+          title={t.subnavTheory}
+        >
+          <svg
+            className="mobile-dock-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <polygon points="12 2 2 7 12 12 22 7 12 2" />
+            <polyline points="2 17 12 22 22 17" />
+            <polyline points="2 12 12 17 22 12" />
+          </svg>
+          <span className="mobile-dock-label">{t.dockNavTheory}</span>
+        </button>
+
+        {/* 5. Report Export */}
         <button
           type="button"
           className={`mobile-dock-item ${activePerspective === 'report' ? 'active' : ''}`}

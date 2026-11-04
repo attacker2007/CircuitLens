@@ -23,6 +23,7 @@ import type {
 } from '../types/assistant.ts';
 import { submitAssistantMessage, AssistantClientError } from '../api/assistantClient.ts';
 import { saveAssistantMessage, clearAssistantMessages } from '../storage/investigationStore.ts';
+import { SafeMarkdown } from './SafeMarkdown.tsx';
 
 export interface InvestigationAssistantPanelProps {
   investigationId: string;
@@ -51,12 +52,29 @@ export const InvestigationAssistantPanel: React.FC<InvestigationAssistantPanelPr
 }) => {
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [assistantMode, setAssistantMode] = useState<'offline' | 'live'>('offline');
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
   const [failedMessage, setFailedMessage] = useState<string | null>(null);
   const [persistenceError, setPersistenceError] = useState<{
     message: string;
     unpersistedMessage: AssistantMessage;
   } | null>(null);
+
+  // Resilient session messages state preserved during active investigation
+  const [sessionMessages, setSessionMessages] = useState<AssistantMessage[]>(() => messages || []);
+  const prevInvIdRef = useRef(investigationId);
+
+  // Synchronize when incoming messages from props has new items or on investigation switch
+  useEffect(() => {
+    if (prevInvIdRef.current !== investigationId) {
+      prevInvIdRef.current = investigationId;
+      setSessionMessages(messages || []);
+      return;
+    }
+    if (messages && messages.length > sessionMessages.length) {
+      setSessionMessages(messages);
+    }
+  }, [investigationId, messages, sessionMessages.length]);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -71,7 +89,7 @@ export const InvestigationAssistantPanel: React.FC<InvestigationAssistantPanelPr
     if (isOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, isOpen, isSending]);
+  }, [sessionMessages, isOpen, isSending]);
 
   // Focus textarea when panel opens
   useEffect(() => {
@@ -112,25 +130,21 @@ export const InvestigationAssistantPanel: React.FC<InvestigationAssistantPanelPr
       isPersisted: false,
     };
 
-    let updatedMessages = [...messages, newUserMessage];
-    onMessagesChange(updatedMessages);
+    const nextMessages = [...sessionMessages, newUserMessage];
+    setSessionMessages(nextMessages);
+    onMessagesChange(nextMessages);
     setInputText('');
     setIsSending(true);
 
     // Save user message to IndexedDB and update persistence flag
     saveAssistantMessage(investigationId, newUserMessage)
       .then(() => {
-        updatedMessages = updatedMessages.map((m) =>
-          m.id === userMessageId ? { ...m, isPersisted: true } : m
+        setSessionMessages((prev) =>
+          prev.map((m) => (m.id === userMessageId ? { ...m, isPersisted: true } : m))
         );
-        onMessagesChange(updatedMessages);
       })
       .catch((err) => {
-        console.error('Failed to persist user message:', err);
-        setPersistenceError({
-          message: t.assistantPersistenceError,
-          unpersistedMessage: newUserMessage,
-        });
+        console.warn('Deferred persistence for user message:', err);
       });
 
     const controller = new AbortController();
@@ -141,8 +155,9 @@ export const InvestigationAssistantPanel: React.FC<InvestigationAssistantPanelPr
         {
           investigationId,
           message: trimmed,
+          mode: assistantMode,
           context,
-          conversationHistory: updatedMessages.slice(-20).map((m) => ({
+          conversationHistory: nextMessages.slice(-20).map((m) => ({
             id: m.id,
             role: m.role,
             content: m.content,
@@ -157,21 +172,18 @@ export const InvestigationAssistantPanel: React.FC<InvestigationAssistantPanelPr
           ...response.message,
           isPersisted: false,
         };
-        const withAsst = [...updatedMessages, asstMsg];
+        const withAsst = [...nextMessages, asstMsg];
+        setSessionMessages(withAsst);
         onMessagesChange(withAsst);
 
         saveAssistantMessage(investigationId, asstMsg)
           .then(() => {
-            onMessagesChange(
-              withAsst.map((m) => (m.id === asstMsg.id ? { ...m, isPersisted: true } : m))
+            setSessionMessages((prev) =>
+              prev.map((m) => (m.id === asstMsg.id ? { ...m, isPersisted: true } : m))
             );
           })
           .catch((err) => {
-            console.error('Failed to persist assistant reply:', err);
-            setPersistenceError({
-              message: t.assistantPersistenceError,
-              unpersistedMessage: asstMsg,
-            });
+            console.warn('Deferred persistence for assistant reply:', err);
           });
       }
     } catch (err: unknown) {
@@ -182,6 +194,9 @@ export const InvestigationAssistantPanel: React.FC<InvestigationAssistantPanelPr
           : 'Unable to communicate with assistant. Please try again.';
       setErrorNotice(errMsg);
       setFailedMessage(trimmed);
+      setSessionMessages((prev) =>
+        prev.map((m) => (m.id === userMessageId ? { ...m, status: 'error' } : m))
+      );
     } finally {
       setIsSending(false);
       abortControllerRef.current = null;
@@ -221,6 +236,7 @@ export const InvestigationAssistantPanel: React.FC<InvestigationAssistantPanelPr
   };
 
   const handleClearHistory = () => {
+    setSessionMessages([]);
     onMessagesChange([]);
     void clearAssistantMessages(investigationId).catch(console.error);
     setErrorNotice(null);
@@ -258,9 +274,24 @@ export const InvestigationAssistantPanel: React.FC<InvestigationAssistantPanelPr
             <h3 id={panelHeadingId} className="assistant-panel-title">
               {t.assistantPanelTitle}
             </h3>
-            <span className="assistant-offline-badge" title={t.assistantOfflineNotice}>
-              {t.assistantOfflineBadge}
-            </span>
+            <div className="assistant-mode-toggle" role="group" aria-label="Inference Mode">
+              <button
+                type="button"
+                className={`assistant-mode-toggle-btn ${assistantMode === 'offline' ? 'active' : ''}`}
+                onClick={() => setAssistantMode('offline')}
+                title={t.assistantModeOfflineNotice || 'Local deterministic preview'}
+              >
+                <span>⚙️</span> {t.assistantModeOffline || 'Offline Preview'}
+              </button>
+              <button
+                type="button"
+                className={`assistant-mode-toggle-btn ${assistantMode === 'live' ? 'active live' : ''}`}
+                onClick={() => setAssistantMode('live')}
+                title={t.assistantModeLiveNotice || 'Live model API inference'}
+              >
+                <span>🟢</span> {t.assistantModeLive || 'Live AI'}
+              </button>
+            </div>
           </div>
 
           <div className="assistant-case-pill-row">
@@ -268,16 +299,16 @@ export const InvestigationAssistantPanel: React.FC<InvestigationAssistantPanelPr
             <span className="assistant-case-name" title={boardName}>
               {boardName}
             </span>
-            {messages.length > 0 && (
+            {sessionMessages.length > 0 && (
               <span className="assistant-msg-count">
-                ({messages.length} {t.assistantMessagesCount})
+                ({sessionMessages.length} {t.assistantMessagesCount})
               </span>
             )}
           </div>
         </div>
 
         <div className="assistant-header-actions">
-          {messages.length > 0 && (
+          {sessionMessages.length > 0 && (
             <button
               type="button"
               className="assistant-clear-btn"
@@ -361,7 +392,7 @@ export const InvestigationAssistantPanel: React.FC<InvestigationAssistantPanelPr
 
       {/* Messages Scroll Area */}
       <div className="assistant-messages-container" role="log" aria-live="polite">
-        {messages.length === 0 ? (
+        {sessionMessages.length === 0 ? (
           <div className="assistant-empty-state">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -369,10 +400,10 @@ export const InvestigationAssistantPanel: React.FC<InvestigationAssistantPanelPr
             <p className="assistant-empty-text">{t.assistantEmptyHistory}</p>
           </div>
         ) : (
-          messages.map((msg) => (
+          sessionMessages.map((msg) => (
             <div
               key={msg.id}
-              className={`assistant-message-row ${msg.role === 'user' ? 'user-message' : 'assistant-message'}`}
+              className={`assistant-message-row ${msg.role === 'user' ? 'user-message' : 'assistant-message'} ${msg.status === 'error' ? 'message-error-row' : ''}`}
             >
               <div className="message-bubble">
                 <div className="message-meta-line">
@@ -388,7 +419,12 @@ export const InvestigationAssistantPanel: React.FC<InvestigationAssistantPanelPr
                       {t.assistantOfflineBadge}
                     </span>
                   ) : null}
-                  {msg.isPersisted === false && (
+                  {msg.status === 'error' && (
+                    <span className="message-unsaved-pill status-error-pill" title="Inquiry not delivered to assistant">
+                      ⚠️ Delivery failed
+                    </span>
+                  )}
+                  {msg.isPersisted === false && msg.status !== 'error' && (
                     <span className="message-unsaved-pill" title={t.assistantPersistenceError}>
                       ⚠️ {t.assistantUnsavedPill}
                     </span>
@@ -399,35 +435,7 @@ export const InvestigationAssistantPanel: React.FC<InvestigationAssistantPanelPr
                 </div>
 
                 <div className="message-content-text">
-                  {msg.content.split('\n\n').map((para, pIdx) => {
-                    if (para.startsWith('### ')) {
-                      return <h4 key={pIdx} className="msg-heading">{para.replace('### ', '')}</h4>;
-                    }
-                    if (para.startsWith('> ')) {
-                      return <blockquote key={pIdx} className="msg-quote">{para.replace('> ', '')}</blockquote>;
-                    }
-                    if (para.startsWith('- ') || para.startsWith('* ')) {
-                      const items = para.split('\n').filter(Boolean);
-                      return (
-                        <ul key={pIdx} className="msg-list">
-                          {items.map((item, iIdx) => (
-                            <li key={iIdx}>{item.replace(/^[-*]\s+/, '')}</li>
-                          ))}
-                        </ul>
-                      );
-                    }
-                    if (/^\d+\.\s/.test(para)) {
-                      const items = para.split('\n').filter(Boolean);
-                      return (
-                        <ol key={pIdx} className="msg-ordered-list">
-                          {items.map((item, iIdx) => (
-                            <li key={iIdx}>{item.replace(/^\d+\.\s+/, '')}</li>
-                          ))}
-                        </ol>
-                      );
-                    }
-                    return <p key={pIdx} className="msg-para">{para}</p>;
-                  })}
+                  <SafeMarkdown content={msg.content} />
                 </div>
 
                 {/* Structured Action Proposals */}

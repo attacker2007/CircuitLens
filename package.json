@@ -8,6 +8,7 @@
     "dev": "concurrently -n \"server,client\" -c \"cyan,magenta\" \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
     "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev",
+    "demo": "concurrently -n \"mock,client\" -c \"yellow,magenta\" \"node server/demo/demo_mock_server.mjs\" \"npm --prefix client run dev:demo\"",
     "build": "npm run build:server && npm run build:client",
     "build:server": "npm --prefix server run build",
     "build:client": "npm --prefix client run build",

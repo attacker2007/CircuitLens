@@ -6,7 +6,17 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 4000;
+// Enforce port 4001 for demo mock server, preventing accidental collision with real Express backend (port 4000)
+const requestedPort = process.env.DEMO_PORT ? parseInt(process.env.DEMO_PORT, 10) : 4001;
+if (process.env.PORT && parseInt(process.env.PORT, 10) === 4000 && !process.env.DEMO_PORT) {
+  console.warn('[CircuitLens Demo Mock Server] WARNING: Environment variable PORT=4000 detected (reserved for live Express backend).');
+  console.warn('[CircuitLens Demo Mock Server] Enforcing isolated port 4001 for offline mock server to prevent port collision.');
+} else if (requestedPort === 4000) {
+  console.error('[CircuitLens Demo Mock Server] FATAL ERROR: Port 4000 is reserved for the live Express backend.');
+  console.error('[CircuitLens Demo Mock Server] Refusing to bind to port 4000 to prevent mock masquerading and live proxy hijacking.');
+  process.exit(1);
+}
+const PORT = requestedPort;
 const diagPath = path.join(__dirname, 'fixtures', 'diagnosis_response.json');
 const reassessPath = path.join(__dirname, 'fixtures', 'reassessment_response_6b2.json');
 
@@ -31,13 +41,14 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       status: 'ok',
-      service: 'CircuitLens Backend API (Offline Deterministic Demo Harness)',
-      provider: 'baseten',
-      apiKeyConfigured: true,
-      apiKeyEnvVar: 'BASETEN_API_KEY',
-      targetModel: 'meta-models/muse-spark-open-1026',
-      baseUrl: 'https://inference.baseten.co/v1',
-      metaBaseUrl: 'https://inference.baseten.co/v1',
+      service: 'CircuitLens Offline Deterministic Demo Mock Server',
+      mode: 'mock_demo',
+      provider: null,
+      apiKeyConfigured: false,
+      targetModel: null,
+      baseUrl: null,
+      metaBaseUrl: null,
+      inferenceVerified: false,
       timestamp: new Date().toISOString()
     }));
     return;
@@ -47,10 +58,23 @@ const server = http.createServer((req, res) => {
     let body = '';
     req.on('data', chunk => { body += chunk; });
     req.on('end', () => {
+      let requestedDepth = diagData.analysisDepth || 'standard';
+      try {
+        const parsed = JSON.parse(body);
+        if (parsed.analysisDepth) requestedDepth = parsed.analysisDepth;
+      } catch {
+        // ignore
+      }
       // Simulate realistic AI inference latency (800ms)
       setTimeout(() => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(diagData));
+        res.end(JSON.stringify({
+          ...diagData,
+          analysisDepth: requestedDepth,
+          provenance: 'offline_fixture',
+          isOfflineMock: true,
+          executionMode: 'mock_demo',
+        }));
       }, 800);
     });
     return;
@@ -60,10 +84,35 @@ const server = http.createServer((req, res) => {
     let body = '';
     req.on('data', chunk => { body += chunk; });
     req.on('end', () => {
+      let dynamicReassess = { ...reassessData };
+      try {
+        const payload = JSON.parse(body || '{}');
+        const submittedEvidence = payload.evidence || [];
+        if (submittedEvidence.length > 0) {
+          const latestId = submittedEvidence[submittedEvidence.length - 1].id;
+          dynamicReassess = JSON.parse(JSON.stringify(reassessData));
+          for (const rh of dynamicReassess.revisedHypotheses || []) {
+            if (rh.citingEvidenceIds && rh.citingEvidenceIds.includes('ev-bench-101')) {
+              rh.citingEvidenceIds = [latestId];
+            }
+          }
+          if (dynamicReassess.evidenceSynthesis) {
+            dynamicReassess.evidenceSynthesis = dynamicReassess.evidenceSynthesis.replace(/ev-bench-101/g, latestId);
+          }
+        }
+      } catch {
+        // Fallback to static fixture
+      }
+
       // Simulate realistic AI reassessment latency (900ms)
       setTimeout(() => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(reassessData));
+        res.end(JSON.stringify({
+          ...dynamicReassess,
+          provenance: 'offline_fixture',
+          isOfflineMock: true,
+          executionMode: 'mock_demo',
+        }));
       }, 900);
     });
     return;

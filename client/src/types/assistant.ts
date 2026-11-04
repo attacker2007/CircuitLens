@@ -5,7 +5,7 @@
  * assistant request/response contracts, and suggested action schemas.
  */
 
-import type { ConfidenceLevel, RevisedHypothesisStatus, CheckOutcome } from './diagnosis.ts';
+import type { ConfidenceLevel, RevisedHypothesisStatus, CheckOutcome, AnalysisDepth } from './diagnosis.ts';
 
 export type AssistantMessageRole = 'user' | 'assistant';
 export type AssistantMessageStatus = 'sending' | 'sent' | 'error';
@@ -102,6 +102,8 @@ export interface AssistantInvestigationContext {
     type: string;
     summary: string;
   }>;
+  /** Active analysis depth scope */
+  analysisDepth?: AnalysisDepth;
 }
 
 export interface AssistantChatRequest {
@@ -109,6 +111,8 @@ export interface AssistantChatRequest {
   message: string;
   context: AssistantInvestigationContext;
   conversationHistory: Array<Pick<AssistantMessage, 'id' | 'role' | 'content' | 'timestamp'>>;
+  /** Execution mode: 'offline' (deterministic preview) or 'live' (configured model provider) */
+  mode?: 'live' | 'offline';
 }
 
 export interface AssistantChatResponse {

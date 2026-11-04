@@ -14,7 +14,10 @@ import {
 import { validateDiagnosisRequest } from './diagnosisRequestValidation.js';
 import { validateReassessmentRequest } from './reassessmentValidation.js';
 import { validateAssistantRequest, AssistantValidationError } from './assistantValidation.js';
-import { generateAssistantResponse } from './assistantEngine.js';
+import {
+  generateAssistantResponse,
+  executeLiveAssistantChat,
+} from './assistantEngine.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '4000', 10);
@@ -53,12 +56,14 @@ app.get('/api/health', (_req: Request, res: Response) => {
   res.json({
     status: configError ? 'error' : 'ok',
     service: 'CircuitLens Backend API',
+    mode: 'live',
     provider: providerConfig.provider,
     apiKeyConfigured: hasKey,
     apiKeyEnvVar: providerConfig.apiKeyEnvVar,
     targetModel: providerConfig.model,
     baseUrl: providerConfig.baseUrl,
     metaBaseUrl: providerConfig.baseUrl,
+    inferenceVerified: false,
     timestamp: new Date().toISOString(),
     ...(configError ? { configurationError: configError } : {}),
   });
@@ -219,8 +224,15 @@ app.post('/api/assistant/chat', async (req: Request, res: Response) => {
     // 1. Authoritative server-side validation & sanitization
     const validatedRequest = validateAssistantRequest(req.body);
 
-    // 2. Generate deterministic investigation-scoped response (offline preview mode)
-    const assistantResponse = generateAssistantResponse(validatedRequest);
+    // 2. Dispatch based on requested mode (defaulting to offline preview)
+    let assistantResponse;
+    if (validatedRequest.mode === 'live') {
+      assistantResponse = await executeLiveAssistantChat(validatedRequest, {
+        signal: abortController.signal,
+      });
+    } else {
+      assistantResponse = generateAssistantResponse(validatedRequest);
+    }
 
     if (!res.headersSent && !res.writableEnded) {
       res.json(assistantResponse);

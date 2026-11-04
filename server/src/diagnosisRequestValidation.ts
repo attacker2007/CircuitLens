@@ -10,7 +10,7 @@
  * to keep backend dependencies minimal and maintain low-latency processing.
  */
 
-import type { DiagnosisRequest } from './types/diagnosis.js';
+import type { DiagnosisRequest, AnalysisDepth } from './types/diagnosis.js';
 
 export class DiagnosisRequestValidationError extends Error {
   constructor(message: string) {
@@ -234,6 +234,17 @@ export function validateDiagnosisRequest(
     additionalNotes = payload.additionalNotes.trim() || undefined;
   }
 
+  // 7. Validate Optional Field: analysisDepth ('basic' | 'standard' | 'advanced')
+  let analysisDepth: AnalysisDepth | undefined;
+  if (payload.analysisDepth !== undefined && payload.analysisDepth !== null) {
+    if (typeof payload.analysisDepth !== 'string' || (payload.analysisDepth !== 'basic' && payload.analysisDepth !== 'standard' && payload.analysisDepth !== 'advanced')) {
+      throw new DiagnosisRequestValidationError(
+        'Optional field "analysisDepth" must be one of "basic", "standard", or "advanced" if provided.'
+      );
+    }
+    analysisDepth = payload.analysisDepth;
+  }
+
   return {
     image,
     expectedBehavior,
@@ -241,5 +252,6 @@ export function validateDiagnosisRequest(
     boardName,
     relevantComponents,
     additionalNotes,
+    analysisDepth,
   };
 }
